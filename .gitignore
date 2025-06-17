@@ -1,0 +1,23 @@
+# Virtual environment
+.venv/
+venv/
+
+# Byte-code files
+*.pyc
+__pycache__/
+
+# Database file
+*.db
+*.sqlite3
+
+# Uploaded files
+static/uploads/
+
+# Environment variables file (if you use it)
+.env
+
+# Editor/IDE specific files
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.idea/

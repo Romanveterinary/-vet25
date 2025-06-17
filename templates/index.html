@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Головна сторінка{% endblock %}
+
+{% block content %}
+    <h1>Ласкаво просимо до Ветеринарної клініки!</h1>
+    <p>Це головна сторінка вашого додатка.</p>
+    {% if current_user.is_authenticated %}
+        <p>Ви успішно увійшли як {{ current_user.username }}.</p>
+    {% else %}
+        <p>Будь ласка, <a href="{{ url_for('login') }}">увійдіть</a> або <a href="{{ url_for('register') }}">зареєструйтеся</a>, щоб продовжити.</p>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Завантажити фото{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header text-center">
+                    <h2>Завантажити фото м'язових волокон</h2>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_photo') }}">
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Виберіть файл зображення:</label>
+                            <input type="file" class="form-control" id="file" name="file" accept="image/*" required>
+                            <div class="form-text">Дозволені формати: PNG, JPG, JPEG, GIF.</div>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="check_trichinella" name="check_trichinella">
+                            <label class="form-check-label" for="check_trichinella">Перевірити на трихінель</label>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="check_anisakids" name="check_anisakids">
+                            <label class="form-check-label" for="check_anisakids">Перевірити на анізакідів</label>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Завантажити</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
