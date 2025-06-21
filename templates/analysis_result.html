@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Обговорення випадку{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center">
+        <h1 class="my-4">Обговорення: {{ photo.filename }}</h1>
+        <a href="{{ url_for('my_photos') }}" class="btn btn-primary">Повернутися до галереї</a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                 <div class="card-header">Матеріал дослідження (Автор: {{ photo.user.username }})</div>
+                <div class="card-body text-center p-0">
+                    {% set is_video = photo.filename.lower().endswith(('.mp4', '.mov', '.avi', '.webm')) %}
+                    {% if is_video %}
+                         <video controls class="img-fluid"><source src="{{ url_for('static', filename='uploads/' + photo.filepath) }}" type="video/mp4"></video>
+                    {% elif photo.analyzed_filepath %}
+                        <div class="row g-0"><div class="col-md-6 border-end"><h6 class="text-center p-2 bg-light">Оригінал</h6><a href="#" class="zoomable-photo" data-bs-toggle="modal" data-bs-target="#imageModal" data-img-src="{{ url_for('static', filename='uploads/' + photo.filepath) }}"><img src="{{ url_for('static', filename='uploads/' + photo.filepath) }}" class="img-fluid"></a></div><div class="col-md-6"><h6 class="text-center p-2 bg-light">Результат аналізу</h6><a href="#" class="zoomable-photo" data-bs-toggle="modal" data-bs-target="#imageModal" data-img-src="{{ url_for('static', filename='uploads/' + photo.analyzed_filepath) }}"><img src="{{ url_for('static', filename='uploads/' + photo.analyzed_filepath) }}" class="img-fluid"></a></div></div>
+                    {% else %}
+                        <a href="#" class="zoomable-photo" data-bs-toggle="modal" data-bs-target="#imageModal" data-img-src="{{ url_for('static', filename='uploads/' + photo.filepath) }}"><img src="{{ url_for('static', filename='uploads/' + photo.filepath) }}" class="img-fluid"></a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+             <div class="card"><div class="card-header">Деталі</div>
+                <div class="card-body">
+                    <p><strong>Тип:</strong> <span class="badge bg-dark">{{ photo.photo_type }}</span></p>
+                    <p><strong>Підприємство:</strong> {{ photo.enterprise.name if photo.enterprise else 'Не вказано' }}</p>
+                    <hr>
+                    <p><strong>Попередній діагноз:</strong></p>
+                     <ul class="list-group list-group-flush"><li class="list-group-item">Трихінельоз: {% if photo.checked_for_trichinella %}✅{% else %}❌{% endif %}</li><li class="list-group-item">Цистицеркоз: {% if photo.checked_for_anisakids %}✅{% else %}❌{% endif %}</li></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr class="my-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h2>Обговорення ({{ comments|length }})</h2>
+            <div class="my-4">
+                {% if comments %}{% for comment in comments %}<div class="card mb-3"><div class="card-body"><div class="d-flex justify-content-between align-items-start"><p class="card-text mb-0 me-3">{{ comment.text }}</p><div class="text-end text-nowrap flex-shrink-0"><footer class="blockquote-footer mb-1"><strong>{{ comment.author.username }}</strong><br><cite>{{ comment.timestamp.strftime('%d-%m-%Y %H:%M') }}</cite></footer>{% if current_user.is_admin %}<form action="{{ url_for('delete_comment', comment_id=comment.id) }}" method="post" onsubmit="return confirm('Ви впевнені?');" class="ms-3"><button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1">Видалити</button></form>{% endif %}</div></div></div></div>{% endfor %}{% else %}<p>Коментарів ще немає.</p>{% endif %}
+            </div>
+            <div class="card"><div class="card-body"><h5 class="card-title">Додати коментар</h5>
+                <!-- ВИПРАВЛЕНО: Посилання на правильний маршрут 'show_analysis' -->
+                <form action="{{ url_for('show_analysis', photo_id=photo.id) }}" method="post">
+                    <div class="mb-3"><textarea class="form-control" name="comment_text" rows="3" required></textarea></div>
+                    <button type="submit" class="btn btn-success">Надіслати</button>
+                </form>
+            </div></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

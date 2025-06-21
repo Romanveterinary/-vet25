@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Мої підприємства{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-4">
+            <h2>Додати підприємство</h2>
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Нове підприємство</h5>
+                    <form method="post">
+                        <div class="mb-3">
+                            <label for="enterprise_name" class="form-label">Назва</label>
+                            <input type="text" class="form-control" id="enterprise_name" name="enterprise_name" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Додати</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <h2>Список моїх підприємств</h2>
+            {% if enterprises %}
+            <table class="table table-striped table-hover">
+                <thead><tr><th>Назва</th></tr></thead>
+                <tbody>
+                    {% for enterprise in enterprises %}
+                    <tr><td>{{ enterprise.name }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="alert alert-info">Ви ще не додали жодного підприємства.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
