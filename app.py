@@ -85,6 +85,15 @@ class Photo(db.Model):
     enterprise = db.relationship('Enterprise', backref=db.backref('photos', lazy=True))
     comments = db.relationship('Comment', backref='photo', lazy='dynamic', cascade="all, delete-orphan")
 
+# --- ВИПРАВЛЕНО: Створення БД та користувачів при старті додатку ---
+with app.app_context():
+    db.create_all()
+    if not User.query.filter_by(username='admin').first():
+        admin_user = User(username='admin', is_admin=True)
+        admin_user.set_password('adminpassword')
+        db.session.add(admin_user)
+        db.session.commit()
+
 # ====================================================================
 # 5. Допоміжні функції
 # ====================================================================
@@ -104,6 +113,7 @@ def admin_required(f):
 # ====================================================================
 # 6. Маршрути
 # ====================================================================
+# ... (всі маршрути залишаються без змін) ...
 @app.route('/')
 def index(): return render_template('index.html')
 
@@ -341,18 +351,3 @@ def delete_comment(comment_id):
         db.session.rollback(); print(f"Помилка при видаленні коментаря: {e}"); traceback.print_exc()
         flash('Під час видалення коментаря сталася помилка.', 'danger')
     return redirect(request.referrer or url_for('index'))
-
-
-# ====================================================================
-# 7. Запуск додатку
-# ====================================================================
-
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        if not User.query.filter_by(username='testuser').first():
-            test_user = User(username='testuser'); test_user.set_password('testpassword'); db.session.add(test_user)
-        if not User.query.filter_by(username='admin').first():
-            admin_user = User(username='admin', is_admin=True); admin_user.set_password('adminpassword'); db.session.add(admin_user)
-        db.session.commit()
-    app.run(debug=True)
