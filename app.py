@@ -13,6 +13,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from PIL import Image, ImageDraw
 import openpyxl
+import click
 
 # ====================================================================
 # 1. Налаштування додатку Flask
@@ -85,15 +86,6 @@ class Photo(db.Model):
     enterprise = db.relationship('Enterprise', backref=db.backref('photos', lazy=True))
     comments = db.relationship('Comment', backref='photo', lazy='dynamic', cascade="all, delete-orphan")
 
-# --- ВИПРАВЛЕНО: Створення БД та користувачів при старті додатку ---
-with app.app_context():
-    db.create_all()
-    if not User.query.filter_by(username='admin').first():
-        admin_user = User(username='admin', is_admin=True)
-        admin_user.set_password('adminpassword')
-        db.session.add(admin_user)
-        db.session.commit()
-
 # ====================================================================
 # 5. Допоміжні функції
 # ====================================================================
@@ -113,7 +105,6 @@ def admin_required(f):
 # ====================================================================
 # 6. Маршрути
 # ====================================================================
-# ... (всі маршрути залишаються без змін) ...
 @app.route('/')
 def index(): return render_template('index.html')
 
@@ -175,6 +166,12 @@ def upload_photo():
 def my_photos():
     photos = Photo.query.filter_by(user_id=current_user.id).order_by(Photo.upload_date.desc()).all()
     return render_template('my_photos.html', photos=photos)
+
+@app.route('/community_feed')
+@login_required
+def community_feed():
+    all_photos = Photo.query.order_by(Photo.upload_date.desc()).all()
+    return render_template('community_feed.html', photos=all_photos)
 
 @app.route('/perform_analysis/<int:photo_id>')
 @login_required
@@ -351,3 +348,23 @@ def delete_comment(comment_id):
         db.session.rollback(); print(f"Помилка при видаленні коментаря: {e}"); traceback.print_exc()
         flash('Під час видалення коментаря сталася помилка.', 'danger')
     return redirect(request.referrer or url_for('index'))
+
+# ====================================================================
+# 7. Запуск додатку
+# ====================================================================
+
+@app.cli.command("init-db")
+def init_db_command():
+    """Створює таблиці бази даних та початкового адміна."""
+    db.create_all()
+    if not User.query.filter_by(username='admin').first():
+        admin_user = User(username='admin', is_admin=True)
+        admin_user.set_password('adminpassword')
+        db.session.add(admin_user)
+        db.session.commit()
+        print("Базу даних та адміністратора створено.")
+    else:
+        print("Адміністратор вже існує.")
+
+if __name__ == '__main__':
+    app.run(debug=True)

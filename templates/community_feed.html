@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Стрічка спільноти{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Загальна стрічка випадків</h1>
+    <p>Тут відображаються останні завантажені файли від усіх лікарів. Натисніть на картку, щоб перейти до обговорення.</p>
+    <hr>
+    {% if photos %}
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for photo in photos %}
+        <div class="col">
+            <div class="card h-100">
+                <a href="{{ url_for('show_analysis', photo_id=photo.id) }}" class="d-block text-decoration-none text-dark">
+                    <div class="card-img-top-container position-relative" style="height: 225px; background-color: black; display: flex; align-items: center; justify-content: center;">
+                        {% set is_video = photo.filename.lower().endswith(('.mp4', '.mov', '.avi', '.webm')) %}
+                        {% if is_video %}
+                             <video style="max-height: 100%; max-width: 100%;">
+                                <source src="{{ url_for('static', filename='uploads/' + photo.filepath) }}" type="video/mp4">
+                            </video>
+                        {% else %}
+                            <img src="{{ url_for('static', filename='uploads/' + photo.filepath) }}" class="card-img-top" style="height: 100%; width: 100%; object-fit: cover;" alt="Фото">
+                        {% endif %}
+                        <div class="card-img-overlay d-flex justify-content-between align-items-start p-2" style="pointer-events: none;">
+                            <div><span class="badge bg-dark" style="pointer-events: auto;">{{ photo.photo_type }}</span></div>
+                            {% if photo.analyzed_filepath and not is_video %}<span class="badge bg-success" style="pointer-events: auto;">Проаналізовано</span>{% endif %}
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ photo.filename }}</h5>
+                        <p class="card-text mb-1"><small class="text-muted">Автор: <strong>{{ photo.user.username }}</strong></small></p>
+                        {% if photo.enterprise %}<p class="card-text"><small class="text-muted">Підприємство: <strong>{{ photo.enterprise.name }}</strong></small></p>{% endif %}
+                    </div>
+                </a>
+                 <div class="card-footer">
+                     <a href="{{ url_for('show_analysis', photo_id=photo.id) }}" class="btn btn-outline-primary w-100">Переглянути обговорення ({{ photo.comments.count() }})</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info" role="alert">Ще не завантажено жодного файлу. Будьте першим!</div>
+    {% endif %}
+</div>
+{% endblock %}
