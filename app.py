@@ -87,7 +87,7 @@ class Photo(db.Model):
     comments = db.relationship('Comment', backref='photo', lazy='dynamic', cascade="all, delete-orphan")
 
 # ====================================================================
-# 5. Допоміжні функції
+# !!!!!!!!!!! НОВИЙ КОД ДЛЯ СТВОРЕННЯ ТАБЛИЦЬ НА RENDER !!!!!!!!!!!
 # ====================================================================
 
 @login_manager.user_loader
