@@ -152,10 +152,10 @@ def upload_photo():
             filename = secure_filename(file.filename)
             file.save(os.path.join(upload_path, filename))
             db_filepath = os.path.join(today_folder, filename).replace('\\', '/')
-            new_photo = Photo(user_id=current_user.id, filename=filename, filepath=db_filepath, 
-                              enterprise_id=enterprise_id, photo_type=photo_type,
-                              checked_for_trichinella='check_trichinella' in request.form,
-                              checked_for_anisakids='check_anisakids' in request.form)
+            new_photo = Photo(user_id=current_user.id, filename=filename, filepath=db_filepath,
+                                  enterprise_id=enterprise_id, photo_type=photo_type,
+                                  checked_for_trichinella='check_trichinella' in request.form,
+                                  checked_for_anisakids='check_anisakids' in request.form)
             db.session.add(new_photo); db.session.commit()
             flash(f'Файл {filename} успішно завантажено!', 'success'); return redirect(url_for('upload_photo'))
         else: flash('Недопустимий тип файлу.', 'danger'); return redirect(request.url)
@@ -177,7 +177,7 @@ def community_feed():
 @login_required
 def perform_analysis(photo_id):
     photo = Photo.query.get_or_404(photo_id)
-    if photo.user.id != current_user.id:
+    if photo.user.id != current_user.id and not current_user.is_admin:
         flash('У вас немає доступу до цього фото.', 'danger'); return redirect(url_for('my_photos'))
     if photo.analyzed_filepath:
         return redirect(url_for('show_analysis', photo_id=photo.id))
@@ -185,7 +185,7 @@ def perform_analysis(photo_id):
         original_path = os.path.join(app.config['UPLOAD_FOLDER'], photo.filepath.replace('/', os.path.sep))
         if not os.path.exists(original_path):
             flash(f'Помилка: вихідний файл не знайдено.', 'danger'); return redirect(url_for('my_photos'))
-        
+
         analyzed_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'analyzed')
         os.makedirs(analyzed_dir, exist_ok=True)
         filename, ext = os.path.splitext(photo.filename)
@@ -244,6 +244,7 @@ def admin_dashboard():
     all_users = User.query.filter(User.is_admin == False).order_by(User.registration_date.desc()).all()
     return render_template('admin_dashboard.html', photos=all_photos, users=all_users)
 
+# ЗМІНЕНО: Маршрут /admin/reports
 @app.route('/admin/reports')
 @login_required
 @admin_required
@@ -252,14 +253,17 @@ def reports():
     users = User.query.filter(User.is_admin == False).all()
     report_data = []
     for user in users:
-        photos_query = db.session.query(Enterprise.name, func.count(Photo.id)).join(Enterprise).filter(Photo.user_id == user.id, Photo.upload_date >= seven_days_ago).group_by(Enterprise.name).all()
-        comments_count = user.comments.filter(Comment.timestamp >= seven_days_ago).count()
+        # Отримуємо повні об'єкти фото та коментарів, а не просто їх кількість
+        user_photos = user.photos.filter(Photo.upload_date >= seven_days_ago).order_by(Photo.upload_date.desc()).all()
+        user_comments = user.comments.filter(Comment.timestamp >= seven_days_ago).order_by(Comment.timestamp.desc()).all()
         report_data.append({
-            'user': user, 'photos_total': sum(c for _, c in photos_query),
-            'photos_by_enterprise': dict(photos_query), 'comments_total': comments_count
+            'user': user,
+            'photos': user_photos, # Передаємо список об'єктів фото
+            'comments': user_comments # Передаємо список об'єктів коментарів
         })
     return render_template('reports.html', report_data=report_data)
 
+# ЗМІНЕНО: Маршрут /admin/download_excel_report
 @app.route('/admin/download_excel_report')
 @login_required
 @admin_required
@@ -267,20 +271,70 @@ def download_excel_report():
     try:
         seven_days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=7)
         users = User.query.filter(User.is_admin == False).all()
-        workbook = openpyxl.Workbook(); sheet = workbook.active
-        sheet.title = "Тижневий звіт"
-        sheet.append(["Користувач", "Всього фото", "Всього коментарів", "Деталізація по підприємствах"])
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        sheet.title = "Детальний тижневий звіт"
+
+        # Створюємо заголовки
+        sheet.append(["Тип запису", "Користувач", "Підприємство / До фото ID", "Дата", "Назва файлу / Текст коментаря"])
+        
+        # Робимо заголовки жирними для кращої читабельності
+        header_font = openpyxl.styles.Font(bold=True)
+        for cell in sheet[1]:
+            cell.font = header_font
+
+        # Проходимо по кожному користувачу
         for user in users:
-            photos_query = db.session.query(Enterprise.name, func.count(Photo.id)).join(Enterprise).filter(Photo.user_id == user.id, Photo.upload_date >= seven_days_ago).group_by(Enterprise.name).all()
-            comments_count = user.comments.filter(Comment.timestamp >= seven_days_ago).count()
-            enterprises_str = ", ".join([f"{name}: {count}" for name, count in photos_query]) if photos_query else "Немає"
-            sheet.append([user.username, sum(c for _, c in photos_query), comments_count, enterprises_str])
+            # Додаємо порожній рядок для візуального розділення
+            sheet.append([]) 
+            # Додаємо рядок з іменем користувача
+            sheet.append([f"Дії користувача: {user.username}", "", "", "", ""])
+            for cell in sheet[sheet.max_row]:
+                cell.font = openpyxl.styles.Font(bold=True, color="003366")
+
+            # Отримуємо та додаємо фото користувача
+            user_photos = user.photos.filter(Photo.upload_date >= seven_days_ago).order_by(Photo.upload_date.desc()).all()
+            if not user_photos:
+                sheet.append(["Фото", user.username, "Немає завантажених фото за цей період", "", ""])
+            else:
+                for photo in user_photos:
+                    sheet.append([
+                        "Фото",
+                        user.username,
+                        photo.enterprise.name if photo.enterprise else "Не вказано",
+                        photo.upload_date.strftime('%Y-%m-%d %H:%M'),
+                        photo.filename
+                    ])
+
+            # Отримуємо та додаємо коментарі користувача
+            user_comments = user.comments.filter(Comment.timestamp >= seven_days_ago).order_by(Comment.timestamp.desc()).all()
+            if not user_comments:
+                sheet.append(["Коментар", user.username, "Немає коментарів за цей період", "", ""])
+            else:
+                for comment in user_comments:
+                    sheet.append([
+                        "Коментар",
+                        user.username,
+                        f"До фото ID: {comment.photo_id}",
+                        comment.timestamp.strftime('%Y-%m-%d %H:%M'),
+                        comment.text
+                    ])
+
+        # Зберігаємо та відправляємо файл
         virtual_workbook = io.BytesIO()
-        workbook.save(virtual_workbook); virtual_workbook.seek(0)
-        return send_file(virtual_workbook, as_attachment=True, download_name=f'weekly_report_{datetime.date.today()}.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        workbook.save(virtual_workbook)
+        virtual_workbook.seek(0)
+        return send_file(
+            virtual_workbook,
+            as_attachment=True,
+            download_name=f'detailed_weekly_report_{datetime.date.today()}.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
     except Exception as e:
-        print(f"Помилка при генерації Excel-звіту: {e}"); traceback.print_exc()
-        flash('Не вдалося згенерувати звіт.', 'danger'); return redirect(url_for('reports'))
+        print(f"Помилка при генерації Excel-звіту: {e}")
+        traceback.print_exc()
+        flash('Не вдалося згенерувати звіт.', 'danger')
+        return redirect(url_for('reports'))
 
 @app.route('/admin/user/<int:user_id>')
 @login_required
@@ -312,8 +366,8 @@ def delete_user(user_id):
         flash('Неможливо видалити іншого адміністратора.', 'danger'); return redirect(url_for('admin_dashboard'))
     try:
         for photo in user_to_delete.photos:
-             if photo.filepath and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], photo.filepath)): os.remove(os.path.join(app.config['UPLOAD_FOLDER'], photo.filepath))
-             if photo.analyzed_filepath and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], photo.analyzed_filepath)): os.remove(os.path.join(app.config['UPLOAD_FOLDER'], photo.analyzed_filepath))
+              if photo.filepath and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], photo.filepath)): os.remove(os.path.join(app.config['UPLOAD_FOLDER'], photo.filepath))
+              if photo.analyzed_filepath and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], photo.analyzed_filepath)): os.remove(os.path.join(app.config['UPLOAD_FOLDER'], photo.analyzed_filepath))
         db.session.delete(user_to_delete); db.session.commit()
         flash(f'Користувача "{user_to_delete.username}" та всі його дані було успішно видалено.', 'success')
     except Exception as e:
