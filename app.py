@@ -87,7 +87,7 @@ class Photo(db.Model):
     comments = db.relationship('Comment', backref='photo', lazy='dynamic', cascade="all, delete-orphan")
 
 # ====================================================================
-# !!!!!!!!!!! НОВИЙ КОД ДЛЯ СТВОРЕННЯ ТАБЛИЦЬ НА RENDER !!!!!!!!!!!
+# 5. Допоміжні функції
 # ====================================================================
 
 @login_manager.user_loader
@@ -244,7 +244,6 @@ def admin_dashboard():
     all_users = User.query.filter(User.is_admin == False).order_by(User.registration_date.desc()).all()
     return render_template('admin_dashboard.html', photos=all_photos, users=all_users)
 
-# ЗМІНЕНО: Маршрут /admin/reports
 @app.route('/admin/reports')
 @login_required
 @admin_required
@@ -263,7 +262,6 @@ def reports():
         })
     return render_template('reports.html', report_data=report_data)
 
-# ЗМІНЕНО: Маршрут /admin/download_excel_report
 @app.route('/admin/download_excel_report')
 @login_required
 @admin_required
