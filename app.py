@@ -28,12 +28,22 @@ UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov', 'avi', 'webm'}
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'дуже-секретний-ключ-для-розробки'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'vet25.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # ====================================================================
-# 2. Ініціалізація
+# 2. Ініціалізація та налаштування бази даних
 # ====================================================================
+
+# Перевіряємо, чи ми на Render (чи є змінна DATABASE_URL)
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    # Використовуємо базу даних PostgreSQL на Render
+    # Замінюємо 'postgres://' на 'postgresql://' для сумісності з SQLAlchemy
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url.replace("postgres://", "postgresql://", 1)
+else:
+    # Використовуємо локальну базу даних SQLite для розробки
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'vet25.db')
+
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -103,7 +113,7 @@ def admin_required(f):
     return decorated_function
 
 # ====================================================================
-# 6. Маршрути
+# 6. Маршрути (без змін)
 # ====================================================================
 @app.route('/')
 def index(): return render_template('index.html')
@@ -252,13 +262,12 @@ def reports():
     users = User.query.filter(User.is_admin == False).all()
     report_data = []
     for user in users:
-        # Отримуємо повні об'єкти фото та коментарів, а не просто їх кількість
         user_photos = user.photos.filter(Photo.upload_date >= seven_days_ago).order_by(Photo.upload_date.desc()).all()
         user_comments = user.comments.filter(Comment.timestamp >= seven_days_ago).order_by(Comment.timestamp.desc()).all()
         report_data.append({
             'user': user,
-            'photos': user_photos, # Передаємо список об'єктів фото
-            'comments': user_comments # Передаємо список об'єктів коментарів
+            'photos': user_photos, 
+            'comments': user_comments
         })
     return render_template('reports.html', report_data=report_data)
 
@@ -272,67 +281,34 @@ def download_excel_report():
         workbook = openpyxl.Workbook()
         sheet = workbook.active
         sheet.title = "Детальний тижневий звіт"
-
-        # Створюємо заголовки
         sheet.append(["Тип запису", "Користувач", "Підприємство / До фото ID", "Дата", "Назва файлу / Текст коментаря"])
-        
-        # Робимо заголовки жирними для кращої читабельності
         header_font = openpyxl.styles.Font(bold=True)
         for cell in sheet[1]:
             cell.font = header_font
-
-        # Проходимо по кожному користувачу
         for user in users:
-            # Додаємо порожній рядок для візуального розділення
             sheet.append([]) 
-            # Додаємо рядок з іменем користувача
             sheet.append([f"Дії користувача: {user.username}", "", "", "", ""])
             for cell in sheet[sheet.max_row]:
                 cell.font = openpyxl.styles.Font(bold=True, color="003366")
-
-            # Отримуємо та додаємо фото користувача
             user_photos = user.photos.filter(Photo.upload_date >= seven_days_ago).order_by(Photo.upload_date.desc()).all()
             if not user_photos:
                 sheet.append(["Фото", user.username, "Немає завантажених фото за цей період", "", ""])
             else:
                 for photo in user_photos:
-                    sheet.append([
-                        "Фото",
-                        user.username,
-                        photo.enterprise.name if photo.enterprise else "Не вказано",
-                        photo.upload_date.strftime('%Y-%m-%d %H:%M'),
-                        photo.filename
-                    ])
-
-            # Отримуємо та додаємо коментарі користувача
+                    sheet.append(["Фото",user.username, photo.enterprise.name if photo.enterprise else "Не вказано", photo.upload_date.strftime('%Y-%m-%d %H:%M'), photo.filename])
             user_comments = user.comments.filter(Comment.timestamp >= seven_days_ago).order_by(Comment.timestamp.desc()).all()
             if not user_comments:
                 sheet.append(["Коментар", user.username, "Немає коментарів за цей період", "", ""])
             else:
                 for comment in user_comments:
-                    sheet.append([
-                        "Коментар",
-                        user.username,
-                        f"До фото ID: {comment.photo_id}",
-                        comment.timestamp.strftime('%Y-%m-%d %H:%M'),
-                        comment.text
-                    ])
-
-        # Зберігаємо та відправляємо файл
+                    sheet.append(["Коментар", user.username, f"До фото ID: {comment.photo_id}", comment.timestamp.strftime('%Y-%m-%d %H:%M'), comment.text])
         virtual_workbook = io.BytesIO()
         workbook.save(virtual_workbook)
         virtual_workbook.seek(0)
-        return send_file(
-            virtual_workbook,
-            as_attachment=True,
-            download_name=f'detailed_weekly_report_{datetime.date.today()}.xlsx',
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
+        return send_file(virtual_workbook, as_attachment=True, download_name=f'detailed_weekly_report_{datetime.date.today()}.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception as e:
-        print(f"Помилка при генерації Excel-звіту: {e}")
-        traceback.print_exc()
-        flash('Не вдалося згенерувати звіт.', 'danger')
-        return redirect(url_for('reports'))
+        print(f"Помилка при генерації Excel-звіту: {e}"); traceback.print_exc()
+        flash('Не вдалося згенерувати звіт.', 'danger'); return redirect(url_for('reports'))
 
 @app.route('/admin/user/<int:user_id>')
 @login_required
@@ -404,19 +380,6 @@ def delete_comment(comment_id):
 # ====================================================================
 # 7. Запуск додатку
 # ====================================================================
-
-@app.cli.command("init-db")
-def init_db_command():
-    """Створює таблиці бази даних та початкового адміна."""
-    db.create_all()
-    if not User.query.filter_by(username='admin').first():
-        admin_user = User(username='admin', is_admin=True)
-        admin_user.set_password('adminpassword')
-        db.session.add(admin_user)
-        db.session.commit()
-        print("Базу даних та адміністратора створено.")
-    else:
-        print("Адміністратор вже існує.")
 
 if __name__ == '__main__':
     app.run(debug=True)
