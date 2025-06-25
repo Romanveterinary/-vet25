@@ -34,14 +34,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # 2. Ініціалізація та налаштування бази даних
 # ====================================================================
 
-# Перевіряємо, чи ми на Render (чи є змінна DATABASE_URL)
 database_url = os.environ.get('DATABASE_URL')
 if database_url:
-    # Використовуємо базу даних PostgreSQL на Render
-    # Замінюємо 'postgres://' на 'postgresql://' для сумісності з SQLAlchemy
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url.replace("postgres://", "postgresql://", 1)
 else:
-    # Використовуємо локальну базу даних SQLite для розробки
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'vet25.db')
 
 
@@ -61,7 +57,8 @@ def allowed_file(filename):
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(120), nullable=False)
+    # ЗМІНЕНО: Збільшено довжину поля для хешу пароля
+    password_hash = db.Column(db.String(256), nullable=False)
     registration_date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     is_admin = db.Column(db.Boolean, default=False)
     photos = db.relationship('Photo', backref='user', lazy='dynamic', cascade="all, delete-orphan")
@@ -113,7 +110,7 @@ def admin_required(f):
     return decorated_function
 
 # ====================================================================
-# 6. Маршрути (без змін)
+# 6. Маршрути
 # ====================================================================
 @app.route('/')
 def index(): return render_template('index.html')
@@ -171,6 +168,7 @@ def upload_photo():
         else: flash('Недопустимий тип файлу.', 'danger'); return redirect(request.url)
     return render_template('upload_photo.html', enterprises=enterprises)
 
+# ... (решта маршрутів залишається без змін) ...
 @app.route('/my_photos')
 @login_required
 def my_photos():
@@ -376,7 +374,7 @@ def delete_comment(comment_id):
         db.session.rollback(); print(f"Помилка при видаленні коментаря: {e}"); traceback.print_exc()
         flash('Під час видалення коментаря сталася помилка.', 'danger')
     return redirect(request.referrer or url_for('index'))
-
+    
 # ====================================================================
 # 7. Запуск додатку
 # ====================================================================
