@@ -1,8 +1,10 @@
+print("!!! ФІНАЛЬНА ВЕРСІЯ APP.PY з усіма функціями на місці !!!")
 import os
 import datetime
 import traceback
 import random
 import io
+import uuid
 from functools import wraps
 from sqlalchemy import func
 
@@ -26,20 +28,14 @@ app = Flask(__name__,
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov', 'avi', 'webm'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'дуже-секретний-ключ-для-розробки'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'vet25.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # ====================================================================
-# 2. Ініціалізація та налаштування бази даних
+# 2. Ініціалізація
 # ====================================================================
-
-database_url = os.environ.get('DATABASE_URL')
-if database_url:
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url.replace("postgres://", "postgresql://", 1)
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'vet25.db')
-
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -47,8 +43,7 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ====================================================================
 # 4. Моделі для бази даних
@@ -57,10 +52,10 @@ def allowed_file(filename):
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    # ЗМІНЕНО: Збільшено довжину поля для хешу пароля
-    password_hash = db.Column(db.String(256), nullable=False)
-    registration_date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    password_hash = db.Column(db.String(120), nullable=False)
+    registration_date = db.Column(db.DateTime, default=lambda: datetime.datetime.now(datetime.UTC))
     is_admin = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=False, nullable=False)
     photos = db.relationship('Photo', backref='user', lazy='dynamic', cascade="all, delete-orphan")
     enterprises = db.relationship('Enterprise', backref='owner', lazy='dynamic', cascade="all, delete-orphan")
     comments = db.relationship('Comment', backref='author', lazy='dynamic', cascade="all, delete-orphan")
@@ -75,9 +70,12 @@ class Enterprise(db.Model):
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, index=True, default=datetime.datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    photo_id = db.Column(db.Integer, db.ForeignKey('photo.id'))
+    timestamp = db.Column(db.DateTime, index=True, default=lambda: datetime.datetime.now(datetime.UTC))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    photo_id = db.Column(db.Integer, db.ForeignKey('photo.id'), nullable=True)
+    public_inquiry_id = db.Column(db.Integer, db.ForeignKey('public_inquiry.id'), nullable=True)
+    photo = db.relationship('Photo', backref=db.backref('comments', lazy='dynamic', cascade="all, delete-orphan"))
+    public_inquiry = db.relationship('PublicInquiry', backref=db.backref('comments', lazy='dynamic', cascade="all, delete-orphan"))
 
 class Photo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -86,20 +84,30 @@ class Photo(db.Model):
     photo_type = db.Column(db.String(50), nullable=False, default='Не вказано')
     filename = db.Column(db.String(255), nullable=False)
     filepath = db.Column(db.String(255), nullable=False)
-    upload_date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    upload_date = db.Column(db.DateTime, default=lambda: datetime.datetime.now(datetime.UTC))
     analyzed_filepath = db.Column(db.String(255), nullable=True)
     checked_for_trichinella = db.Column(db.Boolean, default=False)
     checked_for_anisakids = db.Column(db.Boolean, default=False)
     enterprise = db.relationship('Enterprise', backref=db.backref('photos', lazy=True))
-    comments = db.relationship('Comment', backref='photo', lazy='dynamic', cascade="all, delete-orphan")
 
-# ====================================================================
-# 5. Допоміжні функції
-# ====================================================================
+class PublicInquiry(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    submitter_name = db.Column(db.String(150), nullable=False)
+    location = db.Column(db.String(255), nullable=False)
+    circumstances = db.Column(db.Text, nullable=False)
+    photo_filename = db.Column(db.String(255), nullable=False)
+    photo_filepath = db.Column(db.String(255), nullable=False)
+    submission_date = db.Column(db.DateTime, default=lambda: datetime.datetime.now(datetime.UTC))
+    status = db.Column(db.String(50), default='Новий')
+    admin_comment = db.Column(db.Text, nullable=True)
+    access_token = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
+
+with app.app_context():
+    db.create_all()
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 def admin_required(f):
     @wraps(f)
@@ -115,14 +123,58 @@ def admin_required(f):
 @app.route('/')
 def index(): return render_template('index.html')
 
+@app.route('/safety-check', methods=['GET', 'POST'])
+def safety_check():
+    if request.method == 'POST':
+        submitter_name = request.form.get('submitter_name')
+        location = request.form.get('location')
+        circumstances = request.form.get('circumstances')
+        if 'photo' not in request.files:
+            flash('Фото є обов\'язковим.', 'danger'); return redirect(request.url)
+        photo_file = request.files['photo']
+        if not all([submitter_name, location, circumstances, photo_file.filename]):
+            flash('Будь ласка, заповніть усі поля та додайте фото.', 'danger'); return redirect(request.url)
+        if allowed_file(photo_file.filename):
+            today_folder = datetime.date.today().strftime('%Y-%m-%d')
+            upload_path = os.path.join(app.config['UPLOAD_FOLDER'], 'public_inquiries', today_folder)
+            os.makedirs(upload_path, exist_ok=True)
+            filename = secure_filename(photo_file.filename)
+            photo_file.save(os.path.join(upload_path, filename))
+            db_filepath = os.path.join('public_inquiries', today_folder, filename).replace('\\', '/')
+            new_inquiry = PublicInquiry(submitter_name=submitter_name, location=location, circumstances=circumstances, photo_filename=filename, photo_filepath=db_filepath)
+            db.session.add(new_inquiry)
+            db.session.commit()
+            flash('Ваше звернення успішно відправлено! Будь ласка, збережіть посилання для перевірки статусу.', 'success')
+            return redirect(url_for('submission_success', token=new_inquiry.access_token))
+    return render_template('safety_check.html')
+
+@app.route('/submission-success/<token>')
+def submission_success(token):
+    return render_template('submission_success.html', token=token)
+
+@app.route('/inquiry/<token>')
+def view_inquiry(token):
+    inquiry = PublicInquiry.query.filter_by(access_token=token).first_or_404()
+    comments = inquiry.comments.order_by(Comment.timestamp.asc()).all()
+    return render_template('view_inquiry.html', inquiry=inquiry, comments=comments)
+
+@app.route('/complaint-guide')
+def complaint_guide(): return render_template('complaint_guide.html')
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated: return redirect(url_for('upload_photo'))
     if request.method == 'POST':
         user = User.query.filter_by(username=request.form['username']).first()
         if user and user.check_password(request.form['password']):
-            login_user(user); flash('Успішний вхід!', 'success'); return redirect(url_for('upload_photo'))
-        else: flash('Неправильне ім\'я користувача або пароль.', 'danger')
+            if not user.is_active:
+                flash('Ваш акаунт ще не схвалено адміністратором.', 'warning')
+                return redirect(url_for('login'))
+            login_user(user)
+            flash('Успішний вхід!', 'success')
+            return redirect(url_for('upload_photo'))
+        else:
+            flash('Неправильне ім\'я користувача або пароль.', 'danger')
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -132,9 +184,11 @@ def register():
         username = request.form.get('username')
         if User.query.filter_by(username=username).first():
             flash('Користувач з таким ім\'ям вже існує.', 'danger'); return redirect(url_for('register'))
-        new_user = User(username=username); new_user.set_password(request.form.get('password'))
+        new_user = User(username=username)
+        new_user.set_password(request.form.get('password'))
         db.session.add(new_user); db.session.commit()
-        flash('Реєстрація успішна! Тепер ви можете увійти.', 'success'); return redirect(url_for('login'))
+        flash('Реєстрація успішна! Ваш запит надіслано адміністратору на схвалення.', 'info')
+        return redirect(url_for('login'))
     return render_template('register.html')
 
 @app.route('/logout')
@@ -148,27 +202,19 @@ def upload_photo():
     enterprises = Enterprise.query.filter_by(user_id=current_user.id).order_by(Enterprise.name).all()
     if request.method == 'POST':
         if 'file' not in request.files: flash('Файл не знайдено', 'danger'); return redirect(request.url)
-        file, enterprise_id = request.files['file'], request.form.get('enterprise_id')
-        photo_type = request.form.get('photo_type')
+        file, enterprise_id = request.files['file'], request.form.get('enterprise_id'); photo_type = request.form.get('photo_type')
         if not all([file.filename, enterprise_id, photo_type]):
             flash('Будь ласка, заповніть усі поля.', 'danger'); return render_template('upload_photo.html', enterprises=enterprises)
         if allowed_file(file.filename):
-            today_folder = datetime.date.today().strftime('%Y-%m-%d')
-            upload_path = os.path.join(app.config['UPLOAD_FOLDER'], today_folder)
-            os.makedirs(upload_path, exist_ok=True)
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(upload_path, filename))
-            db_filepath = os.path.join(today_folder, filename).replace('\\', '/')
-            new_photo = Photo(user_id=current_user.id, filename=filename, filepath=db_filepath,
-                                  enterprise_id=enterprise_id, photo_type=photo_type,
-                                  checked_for_trichinella='check_trichinella' in request.form,
-                                  checked_for_anisakids='check_anisakids' in request.form)
+            today_folder = datetime.date.today().strftime('%Y-%m-%d'); upload_path = os.path.join(app.config['UPLOAD_FOLDER'], today_folder)
+            os.makedirs(upload_path, exist_ok=True); filename = secure_filename(file.filename)
+            file.save(os.path.join(upload_path, filename)); db_filepath = os.path.join(today_folder, filename).replace('\\', '/')
+            new_photo = Photo(user_id=current_user.id, filename=filename, filepath=db_filepath, enterprise_id=enterprise_id, photo_type=photo_type, checked_for_trichinella='check_trichinella' in request.form, checked_for_anisakids='check_anisakids' in request.form)
             db.session.add(new_photo); db.session.commit()
             flash(f'Файл {filename} успішно завантажено!', 'success'); return redirect(url_for('upload_photo'))
         else: flash('Недопустимий тип файлу.', 'danger'); return redirect(request.url)
     return render_template('upload_photo.html', enterprises=enterprises)
 
-# ... (решта маршрутів залишається без змін) ...
 @app.route('/my_photos')
 @login_required
 def my_photos():
@@ -178,26 +224,29 @@ def my_photos():
 @app.route('/community_feed')
 @login_required
 def community_feed():
-    all_photos = Photo.query.order_by(Photo.upload_date.desc()).all()
-    return render_template('community_feed.html', photos=all_photos)
+    photos_from_users = Photo.query.all(); inquiries_from_public = PublicInquiry.query.all()
+    feed_items = []
+    for photo in photos_from_users:
+        feed_items.append({"post_type": "photo", "post_obj": photo, "display_date": photo.upload_date, "display_image": photo.filepath, "display_author": photo.user.username, "comment_count": photo.comments.count()})
+    for inquiry in inquiries_from_public:
+        feed_items.append({"post_type": "inquiry", "post_obj": inquiry, "display_date": inquiry.submission_date, "display_image": inquiry.photo_filepath, "display_author": f"Звернення від {inquiry.submitter_name}", "comment_count": inquiry.comments.count()})
+    sorted_feed = sorted(feed_items, key=lambda x: x['display_date'], reverse=True)
+    return render_template('community_feed.html', feed_items=sorted_feed)
 
 @app.route('/perform_analysis/<int:photo_id>')
 @login_required
 def perform_analysis(photo_id):
-    photo = Photo.query.get_or_404(photo_id)
-    if photo.user.id != current_user.id and not current_user.is_admin:
+    photo = db.session.get(Photo, photo_id)
+    if not photo or photo.user.id != current_user.id:
         flash('У вас немає доступу до цього фото.', 'danger'); return redirect(url_for('my_photos'))
     if photo.analyzed_filepath:
-        return redirect(url_for('show_analysis', photo_id=photo.id))
+        return redirect(url_for('view_post', post_type='photo', post_id=photo.id))
     try:
         original_path = os.path.join(app.config['UPLOAD_FOLDER'], photo.filepath.replace('/', os.path.sep))
         if not os.path.exists(original_path):
             flash(f'Помилка: вихідний файл не знайдено.', 'danger'); return redirect(url_for('my_photos'))
-
-        analyzed_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'analyzed')
-        os.makedirs(analyzed_dir, exist_ok=True)
-        filename, ext = os.path.splitext(photo.filename)
-        analyzed_filename = f"{filename}_analyzed{ext}"
+        analyzed_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'analyzed'); os.makedirs(analyzed_dir, exist_ok=True)
+        filename, ext = os.path.splitext(photo.filename); analyzed_filename = f"{filename}_analyzed{ext}"
         analyzed_save_path = os.path.join(analyzed_dir, analyzed_filename)
         with Image.open(original_path) as img:
             img_copy = img.convert("RGB"); draw = ImageDraw.Draw(img_copy)
@@ -207,30 +256,35 @@ def perform_analysis(photo_id):
                 radius = random.randint(10, 25)
                 draw.ellipse([x, y, x + radius*2, y + radius*2], outline='red', width=3)
             img_copy.save(analyzed_save_path)
-        photo.analyzed_filepath = os.path.join('analyzed', analyzed_filename).replace('\\', '/')
-        db.session.commit()
+        photo.analyzed_filepath = os.path.join('analyzed', analyzed_filename).replace('\\', '/'); db.session.commit()
         flash(f'Фото "{photo.filename}" успішно проаналізовано.', 'success')
-        return redirect(url_for('show_analysis', photo_id=photo.id))
+        return redirect(url_for('view_post', post_type='photo', post_id=photo.id))
     except Exception as e:
         print(f"ПОМИЛКА в perform_analysis: {e}"); traceback.print_exc()
-        flash('Під час аналізу фото сталася помилка.', 'danger')
-        return redirect(url_for('my_photos'))
+        flash('Під час аналізу фото сталася помилка.', 'danger'); return redirect(url_for('my_photos'))
 
-@app.route('/analysis_result/<int:photo_id>', methods=['GET', 'POST'])
+@app.route('/post/<string:post_type>/<int:post_id>', methods=['GET', 'POST'])
 @login_required
-def show_analysis(photo_id):
-    photo = Photo.query.get_or_404(photo_id)
+def view_post(post_type, post_id):
+    post = None; comments = []
+    if post_type == 'photo':
+        post = db.session.get(Photo, post_id)
+    elif post_type == 'inquiry':
+        post = db.session.get(PublicInquiry, post_id)
+    if not post: return "Запис не знайдено", 404
     if request.method == 'POST':
         comment_text = request.form.get('comment_text')
         if comment_text:
-            comment = Comment(text=comment_text, author=current_user, photo=photo)
-            db.session.add(comment); db.session.commit()
+            new_comment = Comment(text=comment_text, author=current_user)
+            if post_type == 'photo': new_comment.photo_id = post_id
+            elif post_type == 'inquiry': new_comment.public_inquiry_id = post_id
+            db.session.add(new_comment); db.session.commit()
             flash('Ваш коментар додано.', 'success')
         else: flash('Текст коментаря не може бути порожнім.', 'danger')
-        return redirect(url_for('show_analysis', photo_id=photo_id))
-    comments = photo.comments.order_by(Comment.timestamp.asc()).all()
-    return render_template('analysis_result.html', photo=photo, comments=comments)
-
+        return redirect(url_for('view_post', post_type=post_type, post_id=post_id))
+    comments = post.comments.order_by(Comment.timestamp.asc()).all()
+    return render_template('view_post.html', post=post, post_type=post_type, comments=comments)
+    
 @app.route('/my_enterprises', methods=['GET', 'POST'])
 @login_required
 def my_enterprises():
@@ -249,24 +303,35 @@ def my_enterprises():
 @admin_required
 def admin_dashboard():
     all_photos = Photo.query.order_by(Photo.upload_date.desc()).all()
-    all_users = User.query.filter(User.is_admin == False).order_by(User.registration_date.desc()).all()
-    return render_template('admin_dashboard.html', photos=all_photos, users=all_users)
+    pending_users = User.query.filter_by(is_active=False).order_by(User.registration_date.desc()).all()
+    active_users = User.query.filter_by(is_active=True, is_admin=False).order_by(User.registration_date.desc()).all()
+    all_inquiries = PublicInquiry.query.order_by(PublicInquiry.submission_date.desc()).all()
+    return render_template('admin_dashboard.html', photos=all_photos, active_users=active_users, pending_users=pending_users, inquiries=all_inquiries)
+
+@app.route('/admin/approve_user/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def approve_user(user_id):
+    user = db.session.get(User, user_id)
+    if user and not user.is_active:
+        user.is_active = True
+        db.session.commit()
+        flash(f'Користувача "{user.username}" було успішно активовано.', 'success')
+    else:
+        flash('Користувача не знайдено або він вже активований.', 'warning')
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/reports')
 @login_required
 @admin_required
 def reports():
-    seven_days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=7)
+    seven_days_ago = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=7)
     users = User.query.filter(User.is_admin == False).all()
     report_data = []
     for user in users:
-        user_photos = user.photos.filter(Photo.upload_date >= seven_days_ago).order_by(Photo.upload_date.desc()).all()
-        user_comments = user.comments.filter(Comment.timestamp >= seven_days_ago).order_by(Comment.timestamp.desc()).all()
-        report_data.append({
-            'user': user,
-            'photos': user_photos, 
-            'comments': user_comments
-        })
+        photos_query = db.session.query(Enterprise.name, func.count(Photo.id)).join(Enterprise).filter(Photo.user_id == user.id, Photo.upload_date >= seven_days_ago).group_by(Enterprise.name).all()
+        comments_count = user.comments.filter(Comment.timestamp >= seven_days_ago).count()
+        report_data.append({'user': user, 'photos_total': sum(c for _, c in photos_query), 'photos_by_enterprise': dict(photos_query), 'comments_total': comments_count})
     return render_template('reports.html', report_data=report_data)
 
 @app.route('/admin/download_excel_report')
@@ -274,36 +339,18 @@ def reports():
 @admin_required
 def download_excel_report():
     try:
-        seven_days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=7)
+        seven_days_ago = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=7)
         users = User.query.filter(User.is_admin == False).all()
-        workbook = openpyxl.Workbook()
-        sheet = workbook.active
-        sheet.title = "Детальний тижневий звіт"
-        sheet.append(["Тип запису", "Користувач", "Підприємство / До фото ID", "Дата", "Назва файлу / Текст коментаря"])
-        header_font = openpyxl.styles.Font(bold=True)
-        for cell in sheet[1]:
-            cell.font = header_font
+        workbook = openpyxl.Workbook(); sheet = workbook.active; sheet.title = "Тижневий звіт"
+        sheet.append(["Користувач", "Всього фото", "Всього коментарів", "Деталізація по підприємствах"])
         for user in users:
-            sheet.append([]) 
-            sheet.append([f"Дії користувача: {user.username}", "", "", "", ""])
-            for cell in sheet[sheet.max_row]:
-                cell.font = openpyxl.styles.Font(bold=True, color="003366")
-            user_photos = user.photos.filter(Photo.upload_date >= seven_days_ago).order_by(Photo.upload_date.desc()).all()
-            if not user_photos:
-                sheet.append(["Фото", user.username, "Немає завантажених фото за цей період", "", ""])
-            else:
-                for photo in user_photos:
-                    sheet.append(["Фото",user.username, photo.enterprise.name if photo.enterprise else "Не вказано", photo.upload_date.strftime('%Y-%m-%d %H:%M'), photo.filename])
-            user_comments = user.comments.filter(Comment.timestamp >= seven_days_ago).order_by(Comment.timestamp.desc()).all()
-            if not user_comments:
-                sheet.append(["Коментар", user.username, "Немає коментарів за цей період", "", ""])
-            else:
-                for comment in user_comments:
-                    sheet.append(["Коментар", user.username, f"До фото ID: {comment.photo_id}", comment.timestamp.strftime('%Y-%m-%d %H:%M'), comment.text])
+            photos_query = db.session.query(Enterprise.name, func.count(Photo.id)).join(Enterprise).filter(Photo.user_id == user.id, Photo.upload_date >= seven_days_ago).group_by(Enterprise.name).all()
+            comments_count = user.comments.filter(Comment.timestamp >= seven_days_ago).count()
+            enterprises_str = ", ".join([f"{name}: {count}" for name, count in photos_query]) if photos_query else "Немає"
+            sheet.append([user.username, sum(c for _, c in photos_query), comments_count, enterprises_str])
         virtual_workbook = io.BytesIO()
-        workbook.save(virtual_workbook)
-        virtual_workbook.seek(0)
-        return send_file(virtual_workbook, as_attachment=True, download_name=f'detailed_weekly_report_{datetime.date.today()}.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        workbook.save(virtual_workbook); virtual_workbook.seek(0)
+        return send_file(virtual_workbook, as_attachment=True, download_name=f'weekly_report_{datetime.date.today()}.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception as e:
         print(f"Помилка при генерації Excel-звіту: {e}"); traceback.print_exc()
         flash('Не вдалося згенерувати звіт.', 'danger'); return redirect(url_for('reports'))
@@ -312,16 +359,33 @@ def download_excel_report():
 @login_required
 @admin_required
 def user_details(user_id):
-    user = User.query.get_or_404(user_id)
-    photos = user.photos.order_by(Photo.upload_date.desc()).all()
-    comments = user.comments.order_by(Comment.timestamp.desc()).all()
-    return render_template('user_details.html', user=user, photos=photos, comments=comments)
+    user = db.session.get(User, user_id)
+    return render_template('user_details.html', user=user)
+
+@app.route('/admin/delete_inquiry/<int:inquiry_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_inquiry(inquiry_id):
+    inquiry = db.session.get(PublicInquiry, inquiry_id)
+    if not inquiry: flash('Звернення не знайдено.', 'danger'); return redirect(url_for('admin_dashboard'))
+    try:
+        if inquiry.photo_filepath and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], inquiry.photo_filepath)):
+             os.remove(os.path.join(app.config['UPLOAD_FOLDER'], inquiry.photo_filepath))
+        db.session.delete(inquiry); db.session.commit()
+        flash(f'Звернення №{inquiry.id} було успішно видалено.', 'success')
+    except Exception as e:
+        db.session.rollback(); print(f"Помилка при видаленні звернення: {e}"); traceback.print_exc()
+        flash('Під час видалення звернення сталася помилка.', 'danger')
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/reset_password/<int:user_id>', methods=['POST'])
 @login_required
 @admin_required
 def reset_password(user_id):
-    user = User.query.get_or_404(user_id)
+    user = db.session.get(User, user_id)
+    if not user:
+        flash('Користувача не знайдено.', 'danger')
+        return redirect(url_for('admin_dashboard'))
     new_password = request.form.get('new_password')
     if new_password and len(new_password) >= 6:
         user.set_password(new_password); db.session.commit()
@@ -333,7 +397,9 @@ def reset_password(user_id):
 @login_required
 @admin_required
 def delete_user(user_id):
-    user_to_delete = User.query.get_or_404(user_id)
+    user_to_delete = db.session.get(User, user_id)
+    if not user_to_delete:
+        flash('Користувача не знайдено.', 'danger'); return redirect(url_for('admin_dashboard'))
     if user_to_delete.is_admin:
         flash('Неможливо видалити іншого адміністратора.', 'danger'); return redirect(url_for('admin_dashboard'))
     try:
@@ -349,9 +415,12 @@ def delete_user(user_id):
 
 @app.route('/delete_photo/<int:photo_id>', methods=['POST'])
 @login_required
-@admin_required
 def delete_photo(photo_id):
-    photo = Photo.query.get_or_404(photo_id)
+    photo = db.session.get(Photo, photo_id)
+    if not photo:
+        flash('Фото не знайдено.', 'danger'); return redirect(url_for('my_photos'))
+    if not (current_user.is_admin or current_user.id == photo.user_id):
+        flash('У вас немає прав для видалення цього фото.', 'danger'); return redirect(url_for('my_photos'))
     try:
         if photo.filepath and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], photo.filepath)): os.remove(os.path.join(app.config['UPLOAD_FOLDER'], photo.filepath))
         if photo.analyzed_filepath and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], photo.analyzed_filepath)): os.remove(os.path.join(app.config['UPLOAD_FOLDER'], photo.analyzed_filepath))
@@ -364,9 +433,12 @@ def delete_photo(photo_id):
 
 @app.route('/delete_comment/<int:comment_id>', methods=['POST'])
 @login_required
-@admin_required
 def delete_comment(comment_id):
-    comment = Comment.query.get_or_404(comment_id)
+    comment = db.session.get(Comment, comment_id)
+    if not comment:
+        flash('Коментар не знайдено.', 'danger'); return redirect(url_for('index'))
+    if not (current_user.is_admin or current_user.id == comment.user_id):
+        flash('У вас немає прав для видалення цього коментаря.', 'danger'); return redirect(url_for('index'))
     try:
         db.session.delete(comment); db.session.commit()
         flash('Коментар було успішно видалено.', 'success')
@@ -374,10 +446,20 @@ def delete_comment(comment_id):
         db.session.rollback(); print(f"Помилка при видаленні коментаря: {e}"); traceback.print_exc()
         flash('Під час видалення коментаря сталася помилка.', 'danger')
     return redirect(request.referrer or url_for('index'))
-    
-# ====================================================================
-# 7. Запуск додатку
-# ====================================================================
+
+
+@app.cli.command("init-db")
+def init_db_command():
+    """Створює таблиці бази даних та початкового адміна."""
+    db.create_all()
+    if not User.query.filter_by(username='admin').first():
+        admin_user = User(username='admin', is_admin=True, is_active=True)
+        admin_user.set_password('adminpassword')
+        db.session.add(admin_user)
+        db.session.commit()
+        print("Базу даних та активного адміністратора створено.")
+    else:
+        print("Адміністратор вже існує.")
 
 if __name__ == '__main__':
     app.run(debug=True)

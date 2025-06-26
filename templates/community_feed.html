@@ -1,45 +1,47 @@
 {% extends "base.html" %}
 {% block title %}Стрічка спільноти{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1 class="my-4">Загальна стрічка випадків</h1>
-    <p>Тут відображаються останні завантажені файли від усіх лікарів. Натисніть на картку, щоб перейти до обговорення.</p>
-    <hr>
-    {% if photos %}
+<div class="container mt-4">
+    <div class="p-4 p-md-5 mb-4 rounded text-body-emphasis bg-body-secondary">
+        <div class="col-lg-8 px-0">
+            <h1 class="display-4 fst-italic">Загальна стрічка випадків</h1>
+            <p class="lead my-3">Тут відображаються останні завантажені файли від усіх лікарів, а також публічні звернення. Натисніть на картку, щоб перейти до обговорення.</p>
+        </div>
+    </div>
+
     <div class="row row-cols-1 row-cols-md-3 g-4">
-        {% for photo in photos %}
+        {% for item in feed_items %}
         <div class="col">
-            <div class="card h-100">
-                <a href="{{ url_for('show_analysis', photo_id=photo.id) }}" class="d-block text-decoration-none text-dark">
-                    <div class="card-img-top-container position-relative" style="height: 225px; background-color: black; display: flex; align-items: center; justify-content: center;">
-                        {% set is_video = photo.filename.lower().endswith(('.mp4', '.mov', '.avi', '.webm')) %}
-                        {% if is_video %}
-                             <video style="max-height: 100%; max-width: 100%;">
-                                <source src="{{ url_for('static', filename='uploads/' + photo.filepath) }}" type="video/mp4">
-                            </video>
-                        {% else %}
-                            <img src="{{ url_for('static', filename='uploads/' + photo.filepath) }}" class="card-img-top" style="height: 100%; width: 100%; object-fit: cover;" alt="Фото">
-                        {% endif %}
-                        <div class="card-img-overlay d-flex justify-content-between align-items-start p-2" style="pointer-events: none;">
-                            <div><span class="badge bg-dark" style="pointer-events: auto;">{{ photo.photo_type }}</span></div>
-                            {% if photo.analyzed_filepath and not is_video %}<span class="badge bg-success" style="pointer-events: auto;">Проаналізовано</span>{% endif %}
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <h5 class="card-title">{{ photo.filename }}</h5>
-                        <p class="card-text mb-1"><small class="text-muted">Автор: <strong>{{ photo.user.username }}</strong></small></p>
-                        {% if photo.enterprise %}<p class="card-text"><small class="text-muted">Підприємство: <strong>{{ photo.enterprise.name }}</strong></small></p>{% endif %}
-                    </div>
+            <div class="card h-100 shadow-sm">
+                <a href="{{ url_for('view_post', post_type=item.post_type, post_id=item.post_obj.id) }}">
+                    <img src="{{ url_for('static', filename='uploads/' + item.display_image) }}" class="card-img-top" style="height: 250px; object-fit: cover;" alt="Фото випадку">
                 </a>
-                 <div class="card-footer">
-                     <a href="{{ url_for('show_analysis', photo_id=photo.id) }}" class="btn btn-outline-primary w-100">Переглянути обговорення ({{ photo.comments.count() }})</a>
+                <div class="card-body">
+                    <p class="card-text">
+                        {% if item.post_type == 'photo' %}
+                            <small class="text-muted">Автор: <strong>{{ item.display_author }}</strong></small><br>
+                            {% if item.post_obj.enterprise %}
+                            <small class="text-muted">Підприємство: <strong>{{ item.post_obj.enterprise.name }}</strong></small>
+                            {% endif %}
+                        {% else %}
+                            <strong class="text-danger">{{ item.display_author }}</strong><br>
+                            <small class="text-muted">Місце: <strong>{{ item.post_obj.location }}</strong></small>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="card-footer bg-transparent border-top-0">
+                    <a href="{{ url_for('view_post', post_type=item.post_type, post_id=item.post_obj.id) }}" class="btn btn-outline-primary w-100">
+                        Переглянути обговорення ({{ item.comment_count }})
+                    </a>
                 </div>
             </div>
         </div>
+        {% else %}
+        <div class="col-12">
+            <p class="text-center text-muted">У стрічці поки що немає записів.</p>
+        </div>
         {% endfor %}
     </div>
-    {% else %}
-    <div class="alert alert-info" role="alert">Ще не завантажено жодного файлу. Будьте першим!</div>
-    {% endif %}
 </div>
 {% endblock %}

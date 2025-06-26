@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Звернення відправлено{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <div class="alert alert-success">
+                <h4 class="alert-heading">Дякуємо! Ваше звернення успішно відправлено.</h4>
+                <p>Воно буде розглянуте спеціалістами найближчим часом.</p>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    Ваше унікальне посилання для перевірки статусу
+                </div>
+                <div class="card-body">
+                    <p><strong>БУДЬ ЛАСКА, ЗБЕРЕЖІТЬ ЦЕ ПОСИЛАННЯ!</strong> Тільки за ним ви зможете відслідкувати відповідь на ваше звернення. Скопіюйте його і збережіть у надійному місці.</p>
+                    <div class="input-group">
+                        <input type="text" class="form-control" value="{{ request.url_root }}inquiry/{{ token }}" id="inquiryLink" readonly>
+                        <button class="btn btn-outline-secondary" onclick="copyLink()">Скопіювати</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <a href="{{ url_for('complaint_guide') }}" class="btn btn-info">Як подати офіційну скаргу?</a>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">Повернутись на головну</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyLink() {
+  var copyText = document.getElementById("inquiryLink");
+  copyText.select();
+  copyText.setSelectionRange(0, 99999); /* For mobile devices */
+  navigator.clipboard.writeText(copyText.value);
+  alert("Посилання скопійовано: " + copyText.value);
+}
+</script>
+{% endblock %}
