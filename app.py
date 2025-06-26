@@ -15,6 +15,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from PIL import Image, ImageDraw
 import openpyxl
 import click
+from markupsafe import Markup
 
 # ====================================================================
 # 1. Налаштування додатку Flask
@@ -45,20 +46,30 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ====================================================================
+# 3. Кастомні фільтри для шаблонів
+# ====================================================================
+def nl2br(value):
+    """Перетворює символи нового рядка у HTML-теги <br>."""
+    return Markup(value.replace('\n', '<br>\n'))
+
+app.jinja_env.filters['nl2br'] = nl2br
+
+# ====================================================================
 # 4. Моделі для бази даних
 # ====================================================================
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    # ЗМІНА ТУТ: Збільшили розмір поля для хешу пароля
     password_hash = db.Column(db.String(256), nullable=False)
     registration_date = db.Column(db.DateTime, default=lambda: datetime.datetime.now(datetime.UTC))
     is_admin = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=False, nullable=False)
+    
     photos = db.relationship('Photo', backref='user', lazy='dynamic', cascade="all, delete-orphan")
     enterprises = db.relationship('Enterprise', backref='owner', lazy='dynamic', cascade="all, delete-orphan")
     comments = db.relationship('Comment', backref='author', lazy='dynamic', cascade="all, delete-orphan")
+    
     def set_password(self, password): self.password_hash = generate_password_hash(password)
     def check_password(self, password): return check_password_hash(self.password_hash, password)
 
@@ -74,6 +85,7 @@ class Comment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     photo_id = db.Column(db.Integer, db.ForeignKey('photo.id'), nullable=True)
     public_inquiry_id = db.Column(db.Integer, db.ForeignKey('public_inquiry.id'), nullable=True)
+    
     photo = db.relationship('Photo', backref=db.backref('comments', lazy='dynamic', cascade="all, delete-orphan"))
     public_inquiry = db.relationship('PublicInquiry', backref=db.backref('comments', lazy='dynamic', cascade="all, delete-orphan"))
 
@@ -118,6 +130,9 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# ====================================================================
+# 6. Маршрути
+# ====================================================================
 @app.route('/')
 def index(): return render_template('index.html')
 
@@ -332,13 +347,32 @@ def approve_user(user_id):
 @admin_required
 def reports():
     seven_days_ago = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=7)
-    users = User.query.filter(User.is_admin == False).all()
-    report_data = []
-    for user in users:
-        photos_query = db.session.query(Enterprise.name, func.count(Photo.id)).join(Enterprise).filter(Photo.user_id == user.id, Photo.upload_date >= seven_days_ago).group_by(Enterprise.name).all()
-        comments_count = user.comments.filter(Comment.timestamp >= seven_days_ago).count()
-        report_data.append({'user': user, 'photos_total': sum(c for _, c in photos_query), 'photos_by_enterprise': dict(photos_query), 'comments_total': comments_count})
-    return render_template('reports.html', report_data=report_data)
+    activity_log = []
+
+    # Збираємо завантажені фото
+    photos = Photo.query.filter(Photo.upload_date >= seven_days_ago).all()
+    for photo in photos:
+        activity_log.append({
+            'date': photo.upload_date,
+            'user': photo.user,
+            'type': 'Завантажено фото',
+            'details': photo.filename
+        })
+
+    # Збираємо коментарі
+    comments = Comment.query.filter(Comment.timestamp >= seven_days_ago).all()
+    for comment in comments:
+        activity_log.append({
+            'date': comment.timestamp,
+            'user': comment.author,
+            'type': 'Залишено коментар',
+            'details': f'"{comment.text[:30]}..."' # Показуємо початок коментаря
+        })
+        
+    # Сортуємо весь лог по даті
+    sorted_log = sorted(activity_log, key=lambda x: x['date'], reverse=True)
+    
+    return render_template('reports.html', activity_log=sorted_log)
 
 @app.route('/admin/download_excel_report')
 @login_required
@@ -346,20 +380,56 @@ def reports():
 def download_excel_report():
     try:
         seven_days_ago = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=7)
-        users = User.query.filter(User.is_admin == False).all()
-        workbook = openpyxl.Workbook(); sheet = workbook.active; sheet.title = "Тижневий звіт"
-        sheet.append(["Користувач", "Всього фото", "Всього коментарів", "Деталізація по підприємствах"])
-        for user in users:
-            photos_query = db.session.query(Enterprise.name, func.count(Photo.id)).join(Enterprise).filter(Photo.user_id == user.id, Photo.upload_date >= seven_days_ago).group_by(Enterprise.name).all()
-            comments_count = user.comments.filter(Comment.timestamp >= seven_days_ago).count()
-            enterprises_str = ", ".join([f"{name}: {count}" for name, count in photos_query]) if photos_query else "Немає"
-            sheet.append([user.username, sum(c for _, c in photos_query), comments_count, enterprises_str])
+        activity_log = []
+
+        photos = Photo.query.filter(Photo.upload_date >= seven_days_ago).all()
+        for photo in photos:
+            activity_log.append({
+                'date': photo.upload_date,
+                'user_name': photo.user.username,
+                'type': 'Завантажено фото',
+                'details': photo.filename
+            })
+
+        comments = Comment.query.filter(Comment.timestamp >= seven_days_ago).all()
+        for comment in comments:
+            activity_log.append({
+                'date': comment.timestamp,
+                'user_name': comment.author.username,
+                'type': 'Залишено коментар',
+                'details': comment.text
+            })
+
+        sorted_log = sorted(activity_log, key=lambda x: x['date'], reverse=True)
+
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        sheet.title = "Журнал Активності"
+        sheet.append(["Дата і час", "Користувач", "Тип активності", "Деталі"])
+        
+        for item in sorted_log:
+            sheet.append([
+                item['date'].strftime('%Y-%m-%d %H:%M:%S'),
+                item['user_name'],
+                item['type'],
+                item['details']
+            ])
+
         virtual_workbook = io.BytesIO()
-        workbook.save(virtual_workbook); virtual_workbook.seek(0)
-        return send_file(virtual_workbook, as_attachment=True, download_name=f'weekly_report_{datetime.date.today()}.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        workbook.save(virtual_workbook)
+        virtual_workbook.seek(0)
+        return send_file(
+            virtual_workbook,
+            as_attachment=True,
+            download_name=f'activity_log_{datetime.date.today()}.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
     except Exception as e:
-        print(f"Помилка при генерації Excel-звіту: {e}"); traceback.print_exc()
-        flash('Не вдалося згенерувати звіт.', 'danger'); return redirect(url_for('reports'))
+        print(f"Помилка при генерації Excel-звіту: {e}")
+        traceback.print_exc()
+        flash('Не вдалося згенерувати звіт.', 'danger')
+        return redirect(url_for('reports'))
+
 
 @app.route('/admin/user/<int:user_id>')
 @login_required

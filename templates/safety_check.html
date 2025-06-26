@@ -1,33 +1,50 @@
 {% extends "base.html" %}
+{% block title %}Повідомити про небезпечний продукт{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <h2 class="text-center">Повідомити про підозрілий продукт</h2>
-            <p class="text-center text-muted">Ваше звернення допоможе зробити продукти безпечнішими. Надана інформація буде перевірена спеціалістами.</p>
-            
-            <form method="POST" enctype="multipart/form-data" class="mt-4">
-                <div class="mb-3">
-                    <label for="submitter_name" class="form-label">Ваше прізвище та ім'я</label>
-                    <input type="text" class="form-control" id="submitter_name" name="submitter_name" required>
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h4>Форма звернення щодо підозрілої продукції</h4>
                 </div>
-                <div class="mb-3">
-                    <label for="location" class="form-label">Місце зйомки (місто, магазин, ринок тощо) ваш номер телефону</label>
-                    <input type="text" class="form-control" id="location" name="location" required>
+                <div class="card-body">
+                    <p class="card-text text-muted">Якщо ви придбали продукт, який видається вам неякісним або небезпечним, будь ласка, заповніть форму нижче. Ваше звернення буде розглянуто спеціалістами.</p>
+                    <hr>
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="submitter_name" class="form-label">Ваше ім'я (обов'язково)</label>
+                            <input type="text" class="form-control" id="submitter_name" name="submitter_name" required>
+                        </div>
+                        
+                        <!-- НОВЕ ПОЛЕ ДЛЯ НОМЕРА ТЕЛЕФОНУ -->
+                        <div class="mb-3">
+                            <label for="submitter_phone" class="form-label">Номер телефону (для зворотного зв'язку)</label>
+                            <input type="tel" class="form-control" id="submitter_phone" name="submitter_phone" placeholder="+380 (XX) XXX-XX-XX">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="location" class="form-label">Місце придбання (місто, назва магазину/ринку)</label>
+                            <input type="text" class="form-control" id="location" name="location" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="circumstances" class="form-label">Опишіть обставини (що саме вам видається підозрілим?)</label>
+                            <textarea class="form-control" id="circumstances" name="circumstances" rows="4" required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="photo" class="form-label">Фото продукту (обов'язково)</label>
+                            <input type="file" class="form-control" id="photo" name="photo" accept="image/*" required>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-danger btn-lg">Відправити звернення</button>
+                        </div>
+                    </form>
                 </div>
-                <div class="mb-3">
-                    <label for="circumstances" class="form-label">Опишіть обставини (що саме викликало підозру?)</label>
-                    <textarea class="form-control" id="circumstances" name="circumstances" rows="4" required></textarea>
-                </div>
-                <div class="mb-3">
-                    <label for="photo" class="form-label">Прикріпіть фото</label>
-                    <input type="file" class="form-control" id="photo" name="photo" accept="image/*" required>
-                </div>
-                <div class="d-grid">
-                    <button type="submit" class="btn btn-danger">Відправити звернення</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
