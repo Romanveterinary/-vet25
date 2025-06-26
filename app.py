@@ -29,7 +29,6 @@ UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'дуже-секретний-ключ-для-розробки'
-# ОСЬ ЦЕЙ РЯДОК ЗМІНЕНО
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or 'sqlite:///' + os.path.join(basedir, 'vet25.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -52,7 +51,8 @@ def allowed_file(filename):
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(120), nullable=False)
+    # ЗМІНА ТУТ: Збільшили розмір поля для хешу пароля
+    password_hash = db.Column(db.String(256), nullable=False)
     registration_date = db.Column(db.DateTime, default=lambda: datetime.datetime.now(datetime.UTC))
     is_admin = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=False, nullable=False)
@@ -118,9 +118,6 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# ====================================================================
-# 6. Маршрути
-# ====================================================================
 @app.route('/')
 def index(): return render_template('index.html')
 
@@ -370,8 +367,7 @@ def download_excel_report():
 def user_details(user_id):
     user = db.session.get(User, user_id)
     if not user:
-        flash('Користувача не знайдено.', 'danger')
-        return redirect(url_for('admin_dashboard'))
+        flash('Користувача не знайдено.', 'danger'); return redirect(url_for('admin_dashboard'))
     return render_template('user_details.html', user=user)
 
 @app.route('/admin/delete_inquiry/<int:inquiry_id>', methods=['POST'])
@@ -457,7 +453,6 @@ def delete_comment(comment_id):
         db.session.rollback(); print(f"Помилка при видаленні коментаря: {e}"); traceback.print_exc()
         flash('Під час видалення коментаря сталася помилка.', 'danger')
     return redirect(request.referrer or url_for('index'))
-
 
 @app.cli.command("init-db")
 def init_db_command():
