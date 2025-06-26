@@ -1,4 +1,3 @@
-print("!!! ФІНАЛЬНА ВЕРСІЯ APP.PY з усіма функціями на місці !!!")
 import os
 import datetime
 import traceback
@@ -30,7 +29,8 @@ UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'дуже-секретний-ключ-для-розробки'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'vet25.db')
+# ОСЬ ЦЕЙ РЯДОК ЗМІНЕНО
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or 'sqlite:///' + os.path.join(basedir, 'vet25.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # ====================================================================
@@ -93,6 +93,7 @@ class Photo(db.Model):
 class PublicInquiry(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     submitter_name = db.Column(db.String(150), nullable=False)
+    submitter_phone = db.Column(db.String(50), nullable=True)
     location = db.Column(db.String(255), nullable=False)
     circumstances = db.Column(db.Text, nullable=False)
     photo_filename = db.Column(db.String(255), nullable=False)
@@ -127,13 +128,14 @@ def index(): return render_template('index.html')
 def safety_check():
     if request.method == 'POST':
         submitter_name = request.form.get('submitter_name')
+        submitter_phone = request.form.get('submitter_phone')
         location = request.form.get('location')
         circumstances = request.form.get('circumstances')
         if 'photo' not in request.files:
             flash('Фото є обов\'язковим.', 'danger'); return redirect(request.url)
         photo_file = request.files['photo']
         if not all([submitter_name, location, circumstances, photo_file.filename]):
-            flash('Будь ласка, заповніть усі поля та додайте фото.', 'danger'); return redirect(request.url)
+            flash('Будь ласка, заповніть усі обов\'язкові поля та додайте фото.', 'danger'); return redirect(request.url)
         if allowed_file(photo_file.filename):
             today_folder = datetime.date.today().strftime('%Y-%m-%d')
             upload_path = os.path.join(app.config['UPLOAD_FOLDER'], 'public_inquiries', today_folder)
@@ -141,7 +143,14 @@ def safety_check():
             filename = secure_filename(photo_file.filename)
             photo_file.save(os.path.join(upload_path, filename))
             db_filepath = os.path.join('public_inquiries', today_folder, filename).replace('\\', '/')
-            new_inquiry = PublicInquiry(submitter_name=submitter_name, location=location, circumstances=circumstances, photo_filename=filename, photo_filepath=db_filepath)
+            new_inquiry = PublicInquiry(
+                submitter_name=submitter_name,
+                submitter_phone=submitter_phone,
+                location=location,
+                circumstances=circumstances,
+                photo_filename=filename,
+                photo_filepath=db_filepath
+            )
             db.session.add(new_inquiry)
             db.session.commit()
             flash('Ваше звернення успішно відправлено! Будь ласка, збережіть посилання для перевірки статусу.', 'success')
@@ -360,6 +369,9 @@ def download_excel_report():
 @admin_required
 def user_details(user_id):
     user = db.session.get(User, user_id)
+    if not user:
+        flash('Користувача не знайдено.', 'danger')
+        return redirect(url_for('admin_dashboard'))
     return render_template('user_details.html', user=user)
 
 @app.route('/admin/delete_inquiry/<int:inquiry_id>', methods=['POST'])
@@ -384,8 +396,7 @@ def delete_inquiry(inquiry_id):
 def reset_password(user_id):
     user = db.session.get(User, user_id)
     if not user:
-        flash('Користувача не знайдено.', 'danger')
-        return redirect(url_for('admin_dashboard'))
+        flash('Користувача не знайдено.', 'danger'); return redirect(url_for('admin_dashboard'))
     new_password = request.form.get('new_password')
     if new_password and len(new_password) >= 6:
         user.set_password(new_password); db.session.commit()

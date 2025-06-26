@@ -58,30 +58,31 @@
     </main>
 
     <div class="modal fade" id="imageModal">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Перегляд</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body text-center">
-                    <img src="" class="img-fluid" id="modalImage" alt="Збільшене фото">
-                </div>
-            </div>
         </div>
-    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     
     <script>
+        // Скрипт для модального вікна (збільшення фото)
         var imageModal = document.getElementById('imageModal');
         if (imageModal) {
             imageModal.addEventListener('show.bs.modal', function (event) {
                 var button = event.relatedTarget;
                 var imgSrc = button.getAttribute('data-img-src');
-                var modalImage = imageModal.querySelector('#modalImage');
-                modalImage.src = imgSrc;
+                if (imgSrc) {
+                    var modalImage = imageModal.querySelector('#modalImage');
+                    modalImage.src = imgSrc;
+                }
             });
+        }
+
+        // !!! ПОВЕРНУЛИ ЦЮ ФУНКЦІЮ !!!
+        // Функція для перемикання видимості пароля
+        function togglePasswordVisibility(fieldId) {
+            var passwordField = document.getElementById(fieldId);
+            if (passwordField) {
+                passwordField.type = passwordField.type === 'password' ? 'text' : 'password';
+            }
         }
     </script>
 </body>
