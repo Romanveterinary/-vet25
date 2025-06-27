@@ -529,7 +529,6 @@ def delete_comment(comment_id):
         flash('Під час видалення коментаря сталася помилка.', 'danger')
     return redirect(request.referrer or url_for('index'))
 
-
 @app.cli.command("init-db")
 def init_db_command():
     """Створює/очищує базу даних та створює початкових користувачів."""
@@ -550,7 +549,6 @@ def init_db_command():
         
     db.session.commit()
     print("Ініціалізацію бази даних завершено.")
-
 
 if __name__ == '__main__':
     app.run(debug=True)

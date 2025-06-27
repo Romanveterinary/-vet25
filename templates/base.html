@@ -24,7 +24,6 @@
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('community_feed') }}">Стрічка спільноти</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('my_enterprises') }}">Мої підприємства</a></li>
                         
-                        <!-- ЗМІНА ТУТ: тепер і керівник бачить ці посилання -->
                         {% if current_user.is_manager %}
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_dashboard') }}">Панель</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('reports') }}">Звіти</a></li>
