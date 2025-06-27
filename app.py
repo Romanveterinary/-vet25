@@ -63,7 +63,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     registration_date = db.Column(db.DateTime, default=lambda: datetime.datetime.now(datetime.UTC))
-    is_admin = db.Column(db.Boolean, default=False)
+    role = db.Column(db.String(20), nullable=False, default='user')
     is_active = db.Column(db.Boolean, default=False, nullable=False)
     
     photos = db.relationship('Photo', backref='user', lazy='dynamic', cascade="all, delete-orphan")
@@ -72,6 +72,14 @@ class User(UserMixin, db.Model):
     
     def set_password(self, password): self.password_hash = generate_password_hash(password)
     def check_password(self, password): return check_password_hash(self.password_hash, password)
+
+    @property
+    def is_admin(self):
+        return self.role == 'admin'
+
+    @property
+    def is_manager(self):
+        return self.role in ['manager', 'admin']
 
 class Enterprise(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -121,6 +129,14 @@ with app.app_context():
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
+
+def manager_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_manager:
+            flash('Для доступу до цієї сторінки потрібні права керівника або адміністратора.', 'danger'); return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 def admin_required(f):
     @wraps(f)
@@ -321,11 +337,11 @@ def my_enterprises():
 
 @app.route('/admin/dashboard')
 @login_required
-@admin_required
+@manager_required
 def admin_dashboard():
     all_photos = Photo.query.order_by(Photo.upload_date.desc()).all()
     pending_users = User.query.filter_by(is_active=False).order_by(User.registration_date.desc()).all()
-    active_users = User.query.filter_by(is_active=True, is_admin=False).order_by(User.registration_date.desc()).all()
+    active_users = User.query.filter(User.role != 'admin', User.is_active == True).order_by(User.registration_date.desc()).all()
     all_inquiries = PublicInquiry.query.order_by(PublicInquiry.submission_date.desc()).all()
     return render_template('admin_dashboard.html', photos=all_photos, active_users=active_users, pending_users=pending_users, inquiries=all_inquiries)
 
@@ -344,12 +360,10 @@ def approve_user(user_id):
 
 @app.route('/admin/reports')
 @login_required
-@admin_required
+@manager_required
 def reports():
     seven_days_ago = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=7)
     activity_log = []
-
-    # Збираємо завантажені фото
     photos = Photo.query.filter(Photo.upload_date >= seven_days_ago).all()
     for photo in photos:
         activity_log.append({
@@ -358,30 +372,24 @@ def reports():
             'type': 'Завантажено фото',
             'details': photo.filename
         })
-
-    # Збираємо коментарі
     comments = Comment.query.filter(Comment.timestamp >= seven_days_ago).all()
     for comment in comments:
         activity_log.append({
             'date': comment.timestamp,
             'user': comment.author,
             'type': 'Залишено коментар',
-            'details': f'"{comment.text[:30]}..."' # Показуємо початок коментаря
+            'details': f'"{comment.text[:30]}..."'
         })
-        
-    # Сортуємо весь лог по даті
     sorted_log = sorted(activity_log, key=lambda x: x['date'], reverse=True)
-    
     return render_template('reports.html', activity_log=sorted_log)
 
 @app.route('/admin/download_excel_report')
 @login_required
-@admin_required
+@manager_required
 def download_excel_report():
     try:
         seven_days_ago = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=7)
         activity_log = []
-
         photos = Photo.query.filter(Photo.upload_date >= seven_days_ago).all()
         for photo in photos:
             activity_log.append({
@@ -390,7 +398,6 @@ def download_excel_report():
                 'type': 'Завантажено фото',
                 'details': photo.filename
             })
-
         comments = Comment.query.filter(Comment.timestamp >= seven_days_ago).all()
         for comment in comments:
             activity_log.append({
@@ -399,14 +406,11 @@ def download_excel_report():
                 'type': 'Залишено коментар',
                 'details': comment.text
             })
-
         sorted_log = sorted(activity_log, key=lambda x: x['date'], reverse=True)
-
         workbook = openpyxl.Workbook()
         sheet = workbook.active
         sheet.title = "Журнал Активності"
         sheet.append(["Дата і час", "Користувач", "Тип активності", "Деталі"])
-        
         for item in sorted_log:
             sheet.append([
                 item['date'].strftime('%Y-%m-%d %H:%M:%S'),
@@ -414,7 +418,6 @@ def download_excel_report():
                 item['type'],
                 item['details']
             ])
-
         virtual_workbook = io.BytesIO()
         workbook.save(virtual_workbook)
         virtual_workbook.seek(0)
@@ -425,15 +428,12 @@ def download_excel_report():
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
     except Exception as e:
-        print(f"Помилка при генерації Excel-звіту: {e}")
-        traceback.print_exc()
-        flash('Не вдалося згенерувати звіт.', 'danger')
-        return redirect(url_for('reports'))
-
+        print(f"Помилка при генерації Excel-звіту: {e}"); traceback.print_exc()
+        flash('Не вдалося згенерувати звіт.', 'danger'); return redirect(url_for('reports'))
 
 @app.route('/admin/user/<int:user_id>')
 @login_required
-@admin_required
+@manager_required
 def user_details(user_id):
     user = db.session.get(User, user_id)
     if not user:
@@ -478,11 +478,16 @@ def delete_user(user_id):
     if not user_to_delete:
         flash('Користувача не знайдено.', 'danger'); return redirect(url_for('admin_dashboard'))
     if user_to_delete.is_admin:
-        flash('Неможливо видалити іншого адміністратора.', 'danger'); return redirect(url_for('admin_dashboard'))
+        flash('Неможливо видалити адміністратора.', 'danger'); return redirect(url_for('admin_dashboard'))
     try:
+        # Видаляємо всі пов'язані дані
+        Comment.query.filter_by(user_id=user_id).delete()
         for photo in user_to_delete.photos:
               if photo.filepath and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], photo.filepath)): os.remove(os.path.join(app.config['UPLOAD_FOLDER'], photo.filepath))
               if photo.analyzed_filepath and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], photo.analyzed_filepath)): os.remove(os.path.join(app.config['UPLOAD_FOLDER'], photo.analyzed_filepath))
+        Photo.query.filter_by(user_id=user_id).delete()
+        Enterprise.query.filter_by(user_id=user_id).delete()
+
         db.session.delete(user_to_delete); db.session.commit()
         flash(f'Користувача "{user_to_delete.username}" та всі його дані було успішно видалено.', 'success')
     except Exception as e:
@@ -524,18 +529,28 @@ def delete_comment(comment_id):
         flash('Під час видалення коментаря сталася помилка.', 'danger')
     return redirect(request.referrer or url_for('index'))
 
+
 @app.cli.command("init-db")
 def init_db_command():
-    """Створює таблиці бази даних та початкового адміна."""
+    """Створює/очищує базу даних та створює початкових користувачів."""
+    db.drop_all()
     db.create_all()
+    
     if not User.query.filter_by(username='admin').first():
-        admin_user = User(username='admin', is_admin=True, is_active=True)
+        admin_user = User(username='admin', role='admin', is_active=True)
         admin_user.set_password('adminpassword')
         db.session.add(admin_user)
-        db.session.commit()
-        print("Базу даних та активного адміністратора створено.")
-    else:
-        print("Адміністратор вже існує.")
+        print("Створено адміністратора.")
+
+    if not User.query.filter_by(username='manager').first():
+        manager_user = User(username='manager', role='manager', is_active=True)
+        manager_user.set_password('managerpass')
+        db.session.add(manager_user)
+        print("Створено керівника.")
+        
+    db.session.commit()
+    print("Ініціалізацію бази даних завершено.")
+
 
 if __name__ == '__main__':
     app.run(debug=True)
