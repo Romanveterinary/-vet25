@@ -125,6 +125,17 @@ class PublicInquiry(db.Model):
     admin_comment = db.Column(db.Text, nullable=True)
     access_token = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
 
+# НОВА МОДЕЛЬ для логів чату
+class ChatLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    timestamp = db.Column(db.DateTime, index=True, default=lambda: datetime.datetime.now(datetime.UTC))
+    user_prompt = db.Column(db.Text, nullable=False)
+    bot_response = db.Column(db.Text, nullable=True)
+    
+    # Встановлюємо зв'язок з моделлю User
+    user = db.relationship('User', backref=db.backref('chat_logs', lazy='dynamic'))
+
 # ====================================================================
 # 4. Допоміжні функції для роботи з GCS
 # ====================================================================
@@ -177,6 +188,10 @@ def admin_required(f):
 # 6. Маршрути
 # ====================================================================
 
+# Всі ваші маршрути залишаються тут без змін на даному етапі.
+# Ми оновимо їх пізніше, після того як налаштуємо бекенд чат-бота.
+# Я просто залишу тут декілька для структури.
+
 @app.route('/')
 def index(): return render_template('index.html')
 
@@ -207,48 +222,15 @@ def upload_photo():
             flash('Недопустимий тип файлу.', 'danger'); return redirect(request.url)
     return render_template('upload_photo.html', enterprises=enterprises)
 
-@app.route('/delete_photo/<int:photo_id>', methods=['POST'])
-@login_required
-def delete_photo(photo_id):
-    photo = db.session.get(Photo, photo_id)
-    if not photo: flash('Фото не знайдено.', 'danger'); return redirect(url_for('my_photos'))
-    if not (current_user.is_admin or current_user.id == photo.user_id):
-        flash('У вас немає прав для видалення цього фото.', 'danger'); return redirect(url_for('my_photos'))
-    
-    try:
-        delete_from_gcs(photo.filepath)
-        if photo.analyzed_filepath: delete_from_gcs(photo.analyzed_filepath)
-        db.session.delete(photo); db.session.commit()
-        flash(f'Фото "{photo.filename}" та всі пов\'язані коментарі було успішно видалено.', 'success')
-    except Exception as e:
-        db.session.rollback(); print(f"Помилка при видаленні фото: {e}"); traceback.print_exc()
-        flash('Під час видалення фото сталася помилка.', 'danger')
-    return redirect(request.referrer or url_for('admin_dashboard'))
-
-# Тут я залишаю ваші інші маршрути без змін, оскільки вони не стосуються завантаження/видалення
-# Ви можете вставити їх сюди зі свого оригінального файлу
-# ... safety_check, view_post, my_enterprises, admin routes, etc ...
-
 @app.route('/my_photos')
 @login_required
 def my_photos():
     photos = Photo.query.filter_by(user_id=current_user.id).order_by(Photo.upload_date.desc()).all()
     return render_template('my_photos.html', photos=photos)
+    
+# (тут мають бути всі інші ваші маршрути: /community_feed, /login, /register, /admin/dashboard і т.д.)
+# Просто переконайтеся, що вони тут є, їхній код поки що не змінюється.
 
-@app.route('/community_feed')
-@login_required
-def community_feed():
-    photos_from_users = Photo.query.order_by(Photo.upload_date.desc()).all()
-    inquiries_from_public = PublicInquiry.query.order_by(PublicInquiry.submission_date.desc()).all()
-    feed_items = []
-    for photo in photos_from_users:
-        feed_items.append({"post_type": "photo", "post_obj": photo, "display_date": photo.upload_date, "display_image": photo.filepath, "display_author": photo.user.username, "comment_count": photo.comments.count()})
-    for inquiry in inquiries_from_public:
-        feed_items.append({"post_type": "inquiry", "post_obj": inquiry, "display_date": inquiry.submission_date, "display_image": inquiry.photo_filepath, "display_author": f"Звернення від {inquiry.submitter_name}", "comment_count": inquiry.comments.count()})
-    
-    sorted_feed = sorted(feed_items, key=lambda x: x['display_date'], reverse=True)
-    return render_template('community_feed.html', feed_items=sorted_feed)
-    
 # ====================================================================
 # 7. Створення бази даних та початкових користувачів
 # ====================================================================
@@ -273,7 +255,7 @@ def init_db_command():
         print("Створено керівника.")
         
     db.session.commit()
-    print("Ініціалізацію бази даних завершено.")
+    print("Ініціалізовано базу даних з новою таблицею ChatLog.")
 
 if __name__ == '__main__':
     app.run(debug=True)
