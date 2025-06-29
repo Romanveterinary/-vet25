@@ -4,7 +4,6 @@
 <div class="container">
     <h1 class="my-4">Панель адміністратора</h1>
 
-    <!-- Навігація по вкладках -->
     <ul class="nav nav-tabs" id="adminTab" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button">Керування користувачами</button>
@@ -19,13 +18,10 @@
         </li>
     </ul>
 
-    <!-- Вміст вкладок -->
     <div class="tab-content" id="adminTabContent">
         
-        <!-- Вкладка Керування Користувачами -->
         <div class="tab-pane fade show active" id="users" role="tabpanel">
             
-            <!-- Секція для нових користувачів -->
             <div class="mt-4">
                 <h3>Очікують на схвалення ({{ pending_users|length }})</h3>
                 {% if pending_users %}
@@ -61,7 +57,6 @@
 
             <hr class="my-5">
 
-            <!-- Секція для активних користувачів -->
             <div class="mt-4">
                 <h3>Активні користувачі ({{ active_users|length }})</h3>
                 <div class="table-responsive">
@@ -91,7 +86,6 @@
             </div>
         </div>
 
-        <!-- Вкладка з фотографіями -->
         <div class="tab-pane fade" id="photos" role="tabpanel">
             <h2 class="mt-4">Всі фото ({{ photos|length }})</h2>
             <div class="row row-cols-1 row-cols-md-3 g-4 mt-2">
@@ -99,7 +93,7 @@
                 <div class="col">
                     <div class="card h-100">
                         <a href="{{ url_for('view_post', post_type='photo', post_id=photo.id) }}">
-                            <img src="{{ url_for('static', filename='uploads/' + photo.filepath) }}" class="card-img-top" style="height: 200px; object-fit: cover;" alt="Фото">
+                            <img src="{{ photo.filepath }}" class="card-img-top" style="height: 200px; object-fit: cover;" alt="Фото">
                         </a>
                         <div class="card-body">
                             <p class="card-text">
@@ -120,7 +114,6 @@
             </div>
         </div>
         
-        <!-- Вкладка з публічними зверненнями -->
         <div class="tab-pane fade" id="inquiries" role="tabpanel">
             <h3 class="mt-4">Публічні звернення</h3>
             {% if inquiries %}

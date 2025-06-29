@@ -1,3 +1,22 @@
+Дякую, отримав. Це файл my_photos.html.
+
+Я бачу, що тут у вас є логіка для відображення і фото, і відео. Я вніс зміни в обидва теги (<img> для фото та <source> для відео), щоб вони використовували прямі посилання з хмарного сховища, а не локальні файли.
+
+Файл №2: templates/my_photos.html
+Ось повний, фінальний вміст для цього файлу.
+
+Ваші дії:
+
+Відкрийте файл my_photos.html.
+
+Видаліть все, що там є.
+
+Скопіюйте та вставте весь код, наведений нижче.
+
+Збережіть файл.
+
+HTML
+
 {% extends "base.html" %}
 {% block title %}Мої медіафайли{% endblock %}
 {% block content %}
@@ -15,10 +34,10 @@
                     <a href="{{ url_for('view_post', post_type='photo', post_id=photo.id) }}" class="d-block w-100 h-100">
                         {% if is_video %}
                             <video style="height: 100%; width: 100%; object-fit: contain;">
-                                <source src="{{ url_for('static', filename='uploads/' + photo.filepath) }}" type="video/mp4">
+                                <source src="{{ photo.filepath }}" type="video/mp4">
                             </video>
                         {% else %}
-                            <img src="{{ url_for('static', filename='uploads/' + (photo.analyzed_filepath or photo.filepath)) }}" 
+                            <img src="{{ photo.analyzed_filepath or photo.filepath }}" 
                                  class="card-img-top" 
                                  style="height: 100%; width: 100%; object-fit: cover;" 
                                  alt="Фото">

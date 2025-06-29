@@ -11,20 +11,20 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <h5>Оригінал</h5>
-                                <a href="{{ url_for('static', filename='uploads/' + post.filepath) }}" target="_blank">
-                                    <img src="{{ url_for('static', filename='uploads/' + post.filepath) }}" class="img-fluid rounded" alt="Оригінальне фото">
+                                <a href="{{ post.filepath }}" target="_blank">
+                                    <img src="{{ post.filepath }}" class="img-fluid rounded" alt="Оригінальне фото">
                                 </a>
                             </div>
                             <div class="col-md-6">
                                 <h5>Результат аналізу</h5>
-                                 <a href="{{ url_for('static', filename='uploads/' + post.analyzed_filepath) }}" target="_blank">
-                                    <img src="{{ url_for('static', filename='uploads/' + post.analyzed_filepath) }}" class="img-fluid rounded" alt="Проаналізоване фото">
-                                </a>
+                                 <a href="{{ post.analyzed_filepath }}" target="_blank">
+                                     <img src="{{ post.analyzed_filepath }}" class="img-fluid rounded" alt="Проаналізоване фото">
+                                 </a>
                             </div>
                         </div>
                     {% else %}
-                        <a href="{{ url_for('static', filename='uploads/' + (post.filepath if post_type == 'photo' else post.photo_filepath)) }}" target="_blank">
-                             <img src="{{ url_for('static', filename='uploads/' + (post.filepath if post_type == 'photo' else post.photo_filepath)) }}" class="img-fluid rounded" alt="Головне фото">
+                        <a href="{{ post.filepath if post_type == 'photo' else post.photo_filepath }}" target="_blank">
+                              <img src="{{ post.filepath if post_type == 'photo' else post.photo_filepath }}" class="img-fluid rounded" alt="Головне фото">
                         </a>
                     {% endif %}
                 </div>
