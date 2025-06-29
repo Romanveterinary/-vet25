@@ -48,6 +48,7 @@
 {% if current_user.is_authenticated %}
 
 <style>
+    /* ... (стилі залишаються без змін) ... */
     .chat-toggle-btn {
         position: fixed;
         bottom: 20px;
@@ -169,6 +170,9 @@
 
 
 <script>
+    // НОВЕ: Отримуємо ID та ім'я користувача з шаблону. `|tojson` - це безпечний спосіб передати дані.
+    const currentUserId = {{ current_user.id|tojson }};
+    
     const BACKEND_URL = "https://vet24-gemini-backend.onrender.com/api/chat";
     const chatWidget = document.querySelector('.chat-widget');
     const toggleBtn = document.querySelector('.chat-toggle-btn');
@@ -199,7 +203,11 @@
             const response = await fetch(BACKEND_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: messageText })
+                // ЗМІНЕНО: Додаємо ID користувача до запиту
+                body: JSON.stringify({ 
+                    message: messageText, 
+                    user_id: currentUserId 
+                })
             });
 
             const data = await response.json();
