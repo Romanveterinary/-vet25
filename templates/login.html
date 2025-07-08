@@ -1,12 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Вхід{% endblock %}
+
+{% block title %}Вхід у систему{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
+<div class="row justify-content-center mt-5">
     <div class="col-md-6">
         <div class="card">
+            <div class="card-header">
+                <h3 class="text-center">Вхід у систему</h3>
+            </div>
             <div class="card-body">
-                <h2 class="card-title text-center">Вхід в систему</h2>
-                <form method="post">
+                <form method="post" action="{{ url_for('auth.login') }}">
                     <div class="mb-3">
                         <label for="username" class="form-label">Ім'я користувача</label>
                         <input type="text" class="form-control" id="username" name="username" required>
@@ -16,14 +20,16 @@
                         <input type="password" class="form-control" id="password" name="password" required>
                     </div>
                     <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="togglePassword" onclick="togglePasswordVisibility('password')">
-                        <label class="form-check-label" for="togglePassword">Показати пароль</label>
+                        <input type="checkbox" class="form-check-input" id="showPassword" onclick="togglePasswordVisibility('password')">
+                        <label class="form-check-label" for="showPassword">Показати пароль</label>
                     </div>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary">Увійти</button>
                     </div>
                 </form>
-                <p class="text-center mt-3">Немає акаунту? <a href="{{ url_for('register') }}">Зареєструватися</a></p>
+            </div>
+            <div class="card-footer text-center">
+                <a href="{{ url_for('auth.register') }}">Немає акаунту? Зареєструватися</a>
             </div>
         </div>
     </div>

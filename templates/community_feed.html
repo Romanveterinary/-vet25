@@ -6,49 +6,56 @@
     <div class="p-4 p-md-5 mb-4 rounded text-body-emphasis bg-body-secondary">
         <div class="col-lg-8 px-0">
             <h1 class="display-4 fst-italic">Загальна стрічка випадків</h1>
-            <p class="lead my-3">Тут відображаються останні завантажені файли від усіх лікарів, а також публічні звернення. Натисніть на картку, щоб перейти до обговорення.</p>
+            <p class="lead my-3">Тут відображаються останні завантажені файли від усіх лікарів, згруповані за датою завантаження.</p>
         </div>
     </div>
 
-    <div class="row row-cols-1 row-cols-md-3 g-4">
-        {% for item in feed_items %}
-        <div class="col">
-            <div class="card h-100 shadow-sm">
-                <a href="{{ url_for('view_post', post_type=item.post_type, post_id=item.post_obj.id) }}">
-                    <img src="{{ item.display_image }}" class="card-img-top" style="height: 250px; object-fit: cover;" alt="Фото випадку">
-                </a>
-                <div class="card-body">
-                    <p class="card-text">
-                        {% if item.post_type == 'photo' %}
-                            <small class="text-muted">Автор: <strong>{{ item.display_author }}</strong></small><br>
-                            {% if item.post_obj.enterprise %}
-                            <small class="text-muted">Підприємство: <strong>{{ item.post_obj.enterprise.name }}</strong></small>
-                            {% endif %}
-                        {% else %}
-                            <strong class="text-danger">{{ item.display_author }}</strong><br>
-                            <small class="text-muted">Місце: <strong>{{ item.post_obj.location }}</strong></small>
-                        {% endif %}
-                    </p>
+    {% if grouped_photos %}
+        {% for date, photos_on_day in grouped_photos %}
+            <h2 class="pb-2 border-bottom mb-4 mt-5">
+                {{ date | bilingual_date }}
+            </h2>
+            
+            <div class="row row-cols-1 row-cols-md-3 g-4">
+                {% for photo in photos_on_day %}
+                <div class="col">
+                    <div class="card h-100 shadow-sm">
+                        <a href="{{ url_for('photo.view_details', photo_id=photo.id) }}">
+                            <img src="{{ photo.filepath if photo.filepath.startswith('http') else url_for('static', filename=photo.filepath) }}" 
+                                 class="card-img-top" 
+                                 style="height: 250px; object-fit: cover;" 
+                                 alt="Фото випадку">
+                        </a>
+                        <div class="card-body">
+                            <p class="card-text">
+                                <small class="text-muted">Автор: <strong>{{ photo.user.username }}</strong></small><br>
+                                {% if photo.enterprise %}
+                                <small class="text-muted">Підприємство: <strong>{{ photo.enterprise.name }}</strong></small>
+                                {% endif %}
+                                {% if photo.animal_species and photo.organ_type %}
+                                <br><strong class="text-primary">{{ photo.animal_species }} - {{ photo.organ_type }}</strong>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="card-footer bg-transparent border-top-0">
+                            <a href="{{ url_for('photo.view_details', photo_id=photo.id) }}" class="btn btn-outline-primary w-100">
+                                Переглянути обговорення ({{ photo.comments.count() }})
+                            </a>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-footer bg-transparent border-top-0">
-                    <a href="{{ url_for('view_post', post_type=item.post_type, post_id=item.post_obj.id) }}" class="btn btn-outline-primary w-100">
-                        Переглянути обговорення ({{ item.comment_count }})
-                    </a>
-                </div>
+                {% endfor %}
             </div>
-        </div>
-        {% else %}
-        <div class="col-12">
-            <p class="text-center text-muted">У стрічці поки що немає записів.</p>
-        </div>
         {% endfor %}
-    </div>
+    {% else %}
+        <div class="col-12">
+            <p class="text-center text-muted fs-4 mt-5">У стрічці поки що немає записів.</p>
+        </div>
+    {% endif %}
 </div>
 
 {% if current_user.is_authenticated %}
-
 <style>
-    /* ... (стилі залишаються без змін) ... */
     .chat-toggle-btn {
         position: fixed;
         bottom: 20px;
@@ -170,7 +177,6 @@
 
 
 <script>
-    // НОВЕ: Отримуємо ID та ім'я користувача з шаблону. `|tojson` - це безпечний спосіб передати дані.
     const currentUserId = {{ current_user.id|tojson }};
     
     const BACKEND_URL = "https://vet24-gemini-backend.onrender.com/api/chat";
@@ -203,7 +209,6 @@
             const response = await fetch(BACKEND_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // ЗМІНЕНО: Додаємо ID користувача до запиту
                 body: JSON.stringify({ 
                     message: messageText, 
                     user_id: currentUserId 

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Завантажити документ{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h1 class="my-4">Завантаження нового документа</h1>
+            <div class="card">
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Назва документа</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                            <div class="form-text">Наприклад: "Чек-лист температури" або "Бланк для лабораторії".</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Короткий опис (необов'язково)</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Виберіть файл</label>
+                            <input class="form-control" type="file" id="file" name="file" required>
+                             <div class="form-text">Дозволені типи файлів: .doc, .docx, .xls, .xlsx, .pdf, .txt</div>
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            <a href="{{ url_for('document.list_docs') }}" class="btn btn-secondary me-2">Скасувати</a>
+                            <button type="submit" class="btn btn-primary">Завантажити</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

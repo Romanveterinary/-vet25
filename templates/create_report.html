@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Створити щомісячний звіт{% endblock %}
+
+{% block content %}
+<style>
+    .report-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; table-layout: fixed; }
+    .report-table th, .report-table td { border: 1px solid #ccc; padding: 6px; text-align: center; vertical-align: middle; }
+    .report-table th { background-color: #f2f2f2; }
+    .report-table td:first-child { text-align: left; font-weight: 500; width: 35%; }
+    .section-header { font-weight: bold; background-color: #e9e9e9; text-align: left !important; }
+    .sub-item { padding-left: 25px !important; font-weight: normal !important; }
+    .sub-sub-item { padding-left: 45px !important; font-style: italic; font-weight: normal !important; }
+    .report-table input { width: 100%; box-sizing: border-box; border: 1px solid #ddd; padding: 4px; text-align: center; -moz-appearance: textfield; }
+    .report-table input::-webkit-outer-spin-button, .report-table input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .header-like-row { background-color: #f8f9fa; }
+</style>
+
+<div class="container-fluid">
+    <h1 class="my-4">Створення щомісячного звіту</h1>
+    <form method="post">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">АНАЛІЗ ПРОВЕДЕНОЇ РОБОТИ ЛІКАРЕМ – ВЕТСАНЕКСПЕРТОМ</h5></div>
+            <div class="card-body">
+                <div class="row border-bottom pb-3 mb-3">
+                    <div class="col-md-4 mb-3">
+                        <label for="enterprise_id" class="form-label fw-bold">Підприємство</label>
+                        <select class="form-select" id="enterprise_id" name="enterprise_id" required>
+                            <option value="" disabled selected>Виберіть підприємство...</option>
+                            {% for enterprise in enterprises %}<option value="{{ enterprise.id }}">{{ enterprise.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="report_year" class="form-label fw-bold">Рік</label>
+                        <input type="number" class="form-control" id="report_year" name="report_year" value="{{ current_year }}" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="report_month" class="form-label fw-bold">Місяць</label>
+                        <select class="form-select" id="report_month" name="report_month" required>
+                            {% for month_num, month_name in uk_months.items() %}<option value="{{ month_num }}">{{ month_name | title }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    {% set animal_types = ['vrh', 'svyni', 'vivci_kozy', 'koni', 'ptytsia', 'inshi'] %}
+                    <table class="table table-bordered report-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Найменування показника</th>
+                                <th>ВРХ</th><th>Свині</th><th>Вівці і кози</th><th>Коні</th><th>Птиця</th><th>Інші види</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="7" class="section-header">І. Кількість і стан тварин які надійшли на забій</td></tr>
+                            <tr><td>1. Надійшло і оглянуто тварин</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_received" value="0"></td>{% endfor %}</tr>
+                            <tr><td>2. Зареєстровано хвороб, всього:</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_diseases_registered" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">сибірка</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_disease_sybirka" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">туберкульоз</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_disease_tuberkuloz" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">бруцельоз</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_disease_brutseloz" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">лепто</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_disease_lepto" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">бешиха свиней</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_disease_beshykha_svynei" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">чума свиней</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_disease_chuma_svynei" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">незаразні хвороби</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_disease_nezarazni" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">інші заразні хвороби</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_disease_inshi_zarazni" value="0"></td>{% endfor %}</tr>
+                            <tr><td>3. Загинуло від травм на підприємстві</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_died_from_trauma" value="0"></td>{% endfor %}</tr>
+                            <tr><td>4. Направлено на санбійню</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_sent_to_sanbiynia" value="0"></td>{% endfor %}</tr>
+
+                            <tr><td colspan="7" class="section-header">ІІ. Наслідки післязабійної ветеринарно-санітарної експертизи</td></tr>
+                            <tr><td>1. Виявлені хвороби, випадків:</td><td colspan="6" class="header-like-row"></td></tr>
+                            <tr><td class="sub-item">сибірка</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_sybirka" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">туберкульоз (всього)</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_tuberkuloz_total" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-sub-item">з них утилізовано (туш)</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_tuberkuloz_util" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-sub-item">санбіопереробка</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_tuberkuloz_sanpererobka" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">лейкоз</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_leikoz" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">цистицеркоз (фіноз)</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_tsystytserkoz_finoz" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">ехінококоз</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_ekhinokokoz" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">фасціольоз</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_fastsioloz" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">бруцельоз</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_brutseloz" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">трихінельоз</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_trykhineloz" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">лептоспіроз</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_leptospiroz" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">інші заразні хвороби</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_inshi_zarazni" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">інші інвазійні хвороби</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_inshi_invaziyni" value="0"></td>{% endfor %}</tr>
+                            <tr><td>2. незаразні хвороби</td><td colspan="6" class="header-like-row"></td></tr>
+                            <tr><td class="sub-item">направлено на утилізацію</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_nezarazni_util" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">на промпереробку</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_nezarazni_prompererobka" value="0"></td>{% endfor %}</tr>
+                            <tr><td class="sub-item">на утильзавод</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_nezarazni_na_utylzavod" value="0"></td>{% endfor %}</tr>
+                            <tr><td>3. Направлено на знешкодження (туш)</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_zneshkodzhennia_tush" value="0"></td>{% endfor %}</tr>
+                            <tr><td>4. Направлено на утильзавод (голів)</td>{% for animal in animal_types %}<td><input type="number" name="{{ animal }}_expert_utylzavod_holiv" value="0"></td>{% endfor %}</tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h5 class="mt-4">III. Виготовлено всього продукції</h5>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="production_total" class="form-label">(партій/видів/кг)</label>
+                        <input type="text" class="form-control" name="production_total" id="production_total">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="production_researched" class="form-label">Досліджено продукції (видів)</label>
+                        <input type="text" class="form-control" name="production_researched" id="production_researched">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="waste_utilized_ton" class="form-label">Утилізовано боєнських відходів на утильзавод (тонн)</label>
+                        <input type="number" step="0.001" class="form-control" name="waste_utilized_ton" id="waste_utilized_ton" value="0.0">
+                    </div>
+                </div>
+                
+                <div class="mb-3 mt-3">
+                    <label for="shortcomings_violations" class="form-label fw-bold">Виявлені недоліки та порушення</label>
+                    <textarea class="form-control" id="shortcomings_violations" name="shortcomings_violations" rows="4"></textarea>
+                </div>
+
+            </div>
+            <div class="card-footer text-end">
+                <a href="{{ url_for('report.archive') }}" class="btn btn-secondary">Перейти до архіву</a>
+                <button type="submit" class="btn btn-primary">Зберегти звіт</button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

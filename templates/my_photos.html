@@ -1,22 +1,3 @@
-Дякую, отримав. Це файл my_photos.html.
-
-Я бачу, що тут у вас є логіка для відображення і фото, і відео. Я вніс зміни в обидва теги (<img> для фото та <source> для відео), щоб вони використовували прямі посилання з хмарного сховища, а не локальні файли.
-
-Файл №2: templates/my_photos.html
-Ось повний, фінальний вміст для цього файлу.
-
-Ваші дії:
-
-Відкрийте файл my_photos.html.
-
-Видаліть все, що там є.
-
-Скопіюйте та вставте весь код, наведений нижче.
-
-Збережіть файл.
-
-HTML
-
 {% extends "base.html" %}
 {% block title %}Мої медіафайли{% endblock %}
 {% block content %}
@@ -31,13 +12,13 @@ HTML
                 {% set is_video = photo.filename.lower().endswith(('.mp4', '.mov', '.avi', '.webm')) %}
                 
                 <div class="card-img-top-container position-relative" style="height: 225px; background-color: black; display: flex; align-items: center; justify-content: center;">
-                    <a href="{{ url_for('view_post', post_type='photo', post_id=photo.id) }}" class="d-block w-100 h-100">
+                    <a href="{{ url_for('photo.view_details', photo_id=photo.id) }}" class="d-block w-100 h-100">
                         {% if is_video %}
                             <video style="height: 100%; width: 100%; object-fit: contain;">
-                                <source src="{{ photo.filepath }}" type="video/mp4">
+                                <source src="{{ photo.filepath if photo.filepath.startswith('http') else url_for('static', filename=photo.filepath) }}" type="video/mp4">
                             </video>
                         {% else %}
-                            <img src="{{ photo.analyzed_filepath or photo.filepath }}" 
+                            <img src="{{ (photo.analyzed_filepath or photo.filepath) if (photo.analyzed_filepath or photo.filepath).startswith('http') else url_for('static', filename=(photo.analyzed_filepath or photo.filepath)) }}" 
                                  class="card-img-top" 
                                  style="height: 100%; width: 100%; object-fit: cover;" 
                                  alt="Фото">
@@ -59,14 +40,15 @@ HTML
                     <p class="card-text"><small class="text-muted">Завантажено: {{ photo.upload_date.strftime('%Y-%m-%d %H:%M') }}</small></p>
                 </div>
                 <div class="card-footer">
-                    {% if not is_video and photo.photo_type == 'Мікроскопія' %}
+                    <!-- ЗМІНЕНО: Умова для відображення кнопки "Аналізувати" -->
+                    {% if not is_video %}
                         {% if photo.analyzed_filepath %}
-                            <a href="{{ url_for('view_post', post_type='photo', post_id=photo.id) }}" class="btn btn-success w-100">Переглянути обговорення</a>
+                            <a href="{{ url_for('photo.view_details', photo_id=photo.id) }}" class="btn btn-success w-100">Переглянути обговорення</a>
                         {% else %}
-                            <a href="{{ url_for('perform_analysis', photo_id=photo.id) }}" class="btn btn-primary w-100">Аналізувати</a>
+                            <a href="{{ url_for('photo.perform_analysis', photo_id=photo.id) }}" class="btn btn-primary w-100">Аналізувати</a>
                         {% endif %}
                     {% else %}
-                        <a href="{{ url_for('view_post', post_type='photo', post_id=photo.id) }}" class="btn btn-info w-100">Перейти до обговорення</a>
+                        <a href="{{ url_for('photo.view_details', photo_id=photo.id) }}" class="btn btn-info w-100">Перейти до обговорення</a>
                     {% endif %}
                 </div>
             </div>

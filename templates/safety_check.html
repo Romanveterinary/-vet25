@@ -1,44 +1,48 @@
 {% extends "base.html" %}
-{% block title %}Повідомити про небезпечний продукт{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container mt-5 mb-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header">
-                    <h4>Форма звернення щодо підозрілої продукції</h4>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="card">
+                <div class="card-header text-center">
+                    <h3>Форма звернення щодо підозрілої продукції</h3>
                 </div>
                 <div class="card-body">
-                    <p class="card-text text-muted">Якщо ви придбали продукт, який видається вам неякісним або небезпечним, будь ласка, заповніть форму нижче. Ваше звернення буде розглянуто спеціалістами.</p>
+                    <p class="text-muted">Якщо ви придбали продукт, який видається вам неякісним або небезпечним, будь ласка, заповніть форму нижче.</p>
                     <hr>
-                    <form method="POST" enctype="multipart/form-data">
+                    <form action="{{ url_for('safety.safety_check') }}" method="post" enctype="multipart/form-data">
                         <div class="mb-3">
-                            <label for="submitter_name" class="form-label">Ваше ім'я (обов'язково)</label>
-                            <input type="text" class="form-control" id="submitter_name" name="submitter_name" required>
+                            <label for="name" class="form-label">Ваше ім'я (обов'язково)</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
                         </div>
-                        
-                        <!-- НОВЕ ПОЛЕ ДЛЯ НОМЕРА ТЕЛЕФОНУ -->
                         <div class="mb-3">
-                            <label for="submitter_phone" class="form-label">Номер телефону (для зворотного зв'язку)</label>
-                            <input type="tel" class="form-control" id="submitter_phone" name="submitter_phone" placeholder="+380 (XX) XXX-XX-XX">
+                            <label for="phone" class="form-label">Номер телефону (для зворотного зв'язку)</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" placeholder="+380 (XX) XXX-XX-XX" required>
                         </div>
-
                         <div class="mb-3">
                             <label for="location" class="form-label">Місце придбання (місто, назва магазину/ринку)</label>
                             <input type="text" class="form-control" id="location" name="location" required>
                         </div>
-
                         <div class="mb-3">
-                            <label for="circumstances" class="form-label">Опишіть обставини (що саме вам видається підозрілим?)</label>
-                            <textarea class="form-control" id="circumstances" name="circumstances" rows="4" required></textarea>
+                            <label for="description" class="form-label">Опишіть обставини (що саме вам видається підозрілим?)</label>
+                            <textarea class="form-control" id="description" name="description" rows="5" required></textarea>
                         </div>
-
                         <div class="mb-3">
-                            <label for="photo" class="form-label">Фото продукту (обов'язково)</label>
-                            <input type="file" class="form-control" id="photo" name="photo" accept="image/*" required>
+                            <label for="file" class="form-label">Фото продукту (обов'язково)</label>
+                            <input class="form-control" type="file" id="file" name="file" accept="image/*" required>
                         </div>
-
                         <div class="d-grid">
                             <button type="submit" class="btn btn-danger btn-lg">Відправити звернення</button>
                         </div>
