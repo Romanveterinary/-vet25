@@ -1,96 +1,61 @@
 {% extends "base.html" %}
 
-{% block title %}Обговорення випадку{% endblock %}
+{% block title %}Обговорення: {{ photo.filename }}{% endblock %}
 
 {% block content %}
-<div class="container my-4">
-    <div class="card">
-        <div class="card-header">
-            <h3>Обговорення випадку</h3>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-4">
-                    <h4>Деталі</h4>
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item"><strong>Патологія:</strong> {{ photo.animal_species or 'Не вказано' }} - {{ photo.organ_type or 'Не вказано' }}</li>
-                        <li class="list-group-item"><strong>Файл:</strong> {{ photo.filename }}</li>
-                        <li class="list-group-item"><strong>Автор:</strong> {{ photo.user.username }}</li>
-                        {% if photo.enterprise %}
-                        <li class="list-group-item"><strong>Підприємство:</strong> {{ photo.enterprise.name }}</li>
-                        {% endif %}
-                        <li class="list-group-item"><strong>Дата:</strong> {{ photo.upload_date.strftime('%Y-%m-%d %H:%M') }}</li>
-                    </ul>
-                    <a href="{{ url_for('main.my_photos') }}" class="btn btn-secondary mt-3">Повернутися до моїх файлів</a>
-                    
-                    {% if current_user.is_admin %}
-                    <form action="{{ url_for('photo.delete_photo', photo_id=photo.id) }}" method="post" class="d-inline">
-                        <button type="submit" class="btn btn-danger mt-3" onclick="return confirm('Ви впевнені, що хочете видалити це фото і всі його коментарі?')">
-                            <i class="fas fa-trash-alt"></i> Видалити фото
-                        </button>
-                    </form>
-                    {% endif %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <h2 class="mb-3">Обговорення випадку</h2>
+            <div class="card">
+                <div class="card-body text-center">
+                    <img src="{{ photo.analyzed_filepath or photo.filepath }}"
+                         alt="Фото для аналізу"
+                         class="img-fluid"
+                         style="cursor: pointer; max-height: 70vh;"
+                         data-bs-toggle="modal"
+                         data-bs-target="#imageModal"
+                         data-img-src="{{ photo.analyzed_filepath or photo.filepath }}">
+                    <p class="text-muted mt-2"><small>Натисніть на зображення, щоб збільшити</small></p>
                 </div>
+                <div class="card-footer text-muted">
+                    <strong>Підприємство:</strong> {{ photo.enterprise.name if photo.enterprise else 'Не вказано' }} | 
+                    <strong>Завантажив:</strong> {{ photo.user.username }} | 
+                    <strong>Дата:</strong> {{ photo.upload_date.strftime('%Y-%m-%d %H:%M') }}
+                </div>
+            </div>
 
-                <div class="col-md-8">
-                    <div class="row">
-                        <div class="col-md-6 text-center">
-                            <h5>Оригінал</h5>
-                            <img src="{{ url_for('static', filename=photo.filepath) }}" class="img-fluid rounded" alt="Оригінал">
-                        </div>
-                        <div class="col-md-6 text-center">
-                            <h5>Результат аналізу</h5>
-                            {% if photo.analyzed_filepath %}
-                                <img src="{{ url_for('static', filename=photo.analyzed_filepath) }}" class="img-fluid rounded" alt="Результат аналізу">
-                            {% else %}
-                                <div class="d-flex align-items-center justify-content-center h-100 border rounded bg-light">
-                                    <a href="{{ url_for('photo.perform_analysis', photo_id=photo.id) }}" class="btn btn-primary">Провести аналіз</a>
-                                </div>
+            <div class="mt-4">
+                <h4>Коментарі ({{ photo.comments.count() }})</h4>
+                <hr>
+                {% for comment in photo.comments.order_by(Comment.timestamp.asc()).all() %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <p class="card-text">{{ comment.text | nl2br }}</p>
+                        <p class="card-subtitle text-muted text-end small">
+                            -- <strong>{{ comment.author.username }}</strong>, {{ comment.timestamp.strftime('%Y-%m-%d %H:%M') }}
+                            {% if current_user.id == comment.user_id or current_user.is_admin %}
+                                <form action="{{ url_for('photo.delete_comment', comment_id=comment.id) }}" method="POST" class="d-inline ms-2">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm py-0" onclick="return confirm('Ви впевнені?');">Видалити</button>
+                                </form>
                             {% endif %}
-                        </div>
+                        </p>
                     </div>
                 </div>
-            </div>
-
-            <hr class="my-4">
-
-            <h4>Обговорення ({{ comments|length }})</h4>
-            <div class="mt-3">
-                {% if comments %}
-                    {% for comment in comments %}
-                        <div class="d-flex mb-3">
-                            <div class="flex-shrink-0">
-                                <i class="fas fa-user-circle fa-2x text-muted"></i>
-                            </div>
-                            <div class="flex-grow-1 ms-3">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <strong>{{ comment.author.username }}</strong>
-                                        <small class="text-muted ms-2">{{ comment.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
-                                    </div>
-                                    {% if current_user.is_authenticated and (current_user.id == comment.user_id or current_user.is_admin) %}
-                                    <form action="{{ url_for('photo.delete_comment', comment_id=comment.id) }}" method="post">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Видалити цей коментар?')">&times;</button>
-                                    </form>
-                                    {% endif %}
-                                </div>
-                                <p>{{ comment.text|nl2br }}</p>
-                            </div>
-                        </div>
-                    {% endfor %}
                 {% else %}
-                    <p class="text-muted">Коментарів ще немає. Будьте першим!</p>
-                {% endif %}
+                <p>Коментарів ще немає. Будьте першим!</p>
+                {% endfor %}
             </div>
 
-            <hr>
-            <form method="post">
-                <h5>Залишити коментар</h5>
-                <div class="mb-3">
-                    <textarea name="comment_text" class="form-control" rows="4" placeholder="Ваш коментар..." required></textarea>
-                </div>
-                <button type="submit" class="btn btn-primary">Надіслати</button>
-            </form>
+            <div class="mt-4">
+                <h4>Додати коментар</h4>
+                <form method="POST" action="{{ url_for('photo.view_details', photo_id=photo.id) }}">
+                    <div class="mb-3">
+                        <textarea name="comment_text" class="form-control" rows="3" required placeholder="Ваш коментар..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Відправити</button>
+                </form>
+            </div>
         </div>
     </div>
 </div>

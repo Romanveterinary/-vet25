@@ -10,6 +10,7 @@ from collections import defaultdict
 import json
 import io
 import zipfile
+import requests
 
 from werkzeug.utils import secure_filename
 from flask import Flask, render_template, redirect, url_for, flash, request, send_file
@@ -71,6 +72,8 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
+login_manager.login_message = "Будь ласка, увійдіть, щоб отримати доступ до цієї сторінки."
+login_manager.login_message_category = "info"
 
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
@@ -113,6 +116,11 @@ class User(UserMixin, db.Model):
     def is_admin(self): return self.role == 'admin'
     @property
     def is_manager(self): return self.role in ['manager','admin']
+
+class Announcement(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    last_updated = db.Column(db.DateTime, default=datetime.datetime.now(datetime.UTC), onupdate=datetime.datetime.now(datetime.UTC))
 
 class Enterprise(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -252,6 +260,8 @@ def delete_file_from_storage(filepath):
         try:
             parsed_url = urlparse(filepath)
             gcs_path = parsed_url.path.lstrip('/')
+            # Припускаємо, що BUCKET_NAME встановлено в конфігурації
+            # BUCKET_NAME = 'your-bucket-name' 
             blob_name = gcs_path.replace(f"{BUCKET_NAME}/", "", 1)
             blob = bucket.blob(blob_name)
             if blob.exists():
@@ -267,11 +277,18 @@ def delete_file_from_storage(filepath):
             print(f"Помилка видалення локального файлу {filepath}: {e}")
 
 # ====================================================================
-# 5. Декоратори та завантажувач користувача
+# 5. Декоратори, завантажувач користувача та глобальні функції
 # ====================================================================
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
+
+@app.context_processor
+def inject_announcement():
+    if current_user.is_authenticated:
+        announcement = Announcement.query.order_by(Announcement.last_updated.desc()).first()
+        return dict(announcement=announcement)
+    return dict(announcement=None)
 
 def admin_required(f):
     @wraps(f)
@@ -315,16 +332,11 @@ def safety_check():
         file = request.files.get('file')
 
         errors = []
-        if not name:
-            errors.append("Поле \"Ваше ім'я\" є обов'язковим.")
-        if not phone:
-            errors.append("Поле \"Номер телефону\" є обов'язковим.")
-        if not location:
-            errors.append("Поле \"Місце придбання\" є обов'язковим.")
-        if not description:
-            errors.append("Поле \"Опишіть обставини\" є обов'язковим.")
-        if not file or not file.filename:
-            errors.append("Фото продукту є обов'язковим для завантаження.")
+        if not name: errors.append("Поле \"Ваше ім'я\" є обов'язковим.")
+        if not phone: errors.append("Поле \"Номер телефону\" є обов'язковим.")
+        if not location: errors.append("Поле \"Місце придбання\" є обов'язковим.")
+        if not description: errors.append("Поле \"Опишіть обставини\" є обов'язковим.")
+        if not file or not file.filename: errors.append("Фото продукту є обов'язковим для завантаження.")
 
         if errors:
             for error in errors:
@@ -338,12 +350,8 @@ def safety_check():
             relative_path = os.path.join('uploads', 'safety_reports', filename).replace('\\', '/')
 
             new_report = SafetyReport(
-                name=name,
-                phone=phone,
-                location=location,
-                description=description,
-                photo_filename=filename,
-                photo_filepath=relative_path
+                name=name, phone=phone, location=location, description=description,
+                photo_filename=filename, photo_filepath=relative_path
             )
             db.session.add(new_report)
             db.session.commit()
@@ -370,7 +378,6 @@ def inquiry_status(report_id):
 def complaint_guide():
     return render_template('complaint_guide.html')
 
-
 # --- Основні маршрути ---
 @main_bp.route('/')
 def index():
@@ -392,7 +399,6 @@ def community_feed():
     for date, group in groupby(all_photos, key=get_date):
         grouped_photos.append((date, list(group)))
     return render_template('community_feed.html', grouped_photos=grouped_photos)
-
 
 @main_bp.route('/my_enterprises', methods=['GET', 'POST'])
 @login_required
@@ -470,13 +476,9 @@ def upload():
                 file.stream.seek(0)
                 filepath = save_file_photo(file.stream, file.content_type, file.filename, animal_species, organ_type)
                 new_photo = Photo(
-                    user_id=current_user.id, 
-                    filename=secure_filename(file.filename), 
-                    filepath=filepath, 
-                    enterprise_id=enterprise_id, 
-                    photo_type=photo_type,
-                    animal_species=animal_species,
-                    organ_type=organ_type,
+                    user_id=current_user.id, filename=secure_filename(file.filename), filepath=filepath, 
+                    enterprise_id=enterprise_id, photo_type=photo_type,
+                    animal_species=animal_species, organ_type=organ_type,
                     checked_for_trichinella='check_trichinella' in request.form, 
                     checked_for_anisakids='check_anisakids' in request.form
                 )
@@ -557,36 +559,52 @@ def perform_analysis(photo_id):
     if not photo or (photo.user_id != current_user.id and not current_user.is_admin):
         flash('Фото не знайдено або у вас немає доступу.', 'danger')
         return redirect(url_for('main.my_photos'))
+
     if photo.analyzed_filepath:
         return redirect(url_for('photo.view_details', photo_id=photo.id))
+
     try:
         if photo.filepath.startswith('http'):
-            flash('Аналіз файлів з хмарного сховища ще не реалізовано.', 'info')
-            return redirect(url_for('photo.view_details', photo_id=photo.id))
-        original_local_path = os.path.join(app.static_folder, photo.filepath)
-        if not os.path.exists(original_local_path):
-            flash(f'Помилка: вихідний файл не знайдено за шляхом {original_local_path}.', 'danger')
-            return redirect(url_for('main.my_photos'))
-        analyzed_dir = os.path.join(app.static_folder, 'uploads', 'analyzed')
-        os.makedirs(analyzed_dir, exist_ok=True)
-        filename, ext = os.path.splitext(photo.filename)
-        analyzed_filename = f"{filename}_analyzed{ext}"
-        analyzed_save_path = os.path.join(analyzed_dir, analyzed_filename)
-        with Image.open(original_local_path) as img:
+            response = requests.get(photo.filepath, stream=True)
+            response.raise_for_status()
+            image_stream = io.BytesIO(response.content)
+        else:
+            local_path = os.path.join(app.static_folder, photo.filepath)
+            if not os.path.exists(local_path):
+                flash(f'Помилка: вихідний файл не знайдено за шляхом {local_path}.', 'danger')
+                return redirect(url_for('main.my_photos'))
+            image_stream = open(local_path, 'rb')
+
+        with Image.open(image_stream) as img:
             img_copy = img.convert("RGB")
             draw = ImageDraw.Draw(img_copy)
             width, height = img_copy.size
             for _ in range(random.randint(3, 5)):
-                x, y = random.randint(0, width-50), random.randint(0, height-50)
+                x, y = random.randint(0, width - 50), random.randint(0, height - 50)
                 radius = random.randint(10, 25)
                 draw.ellipse([x, y, x + radius*2, y + radius*2], outline='red', width=3)
-            img_copy.save(analyzed_save_path)
-        photo.analyzed_filepath = os.path.join('uploads', 'analyzed', analyzed_filename).replace('\\', '/')
+            
+            analyzed_buffer = io.BytesIO()
+            img_copy.save(analyzed_buffer, format='JPEG')
+            analyzed_buffer.seek(0)
+
+        filename, ext = os.path.splitext(photo.filename)
+        analyzed_filename = f"{filename}_analyzed.jpg"
+        
+        analyzed_gcs_url = save_file_photo(
+            analyzed_buffer, 'image/jpeg', analyzed_filename,
+            photo.animal_species, photo.organ_type
+        )
+        
+        photo.analyzed_filepath = analyzed_gcs_url
         db.session.commit()
+        
         flash(f'Фото "{photo.filename}" успішно проаналізовано.', 'success')
         return redirect(url_for('photo.view_details', photo_id=photo.id))
+
     except Exception as e:
-        print(f"ПОМИЛКА в perform_analysis: {e}"); traceback.print_exc()
+        print(f"ПОМИЛКА в perform_analysis: {e}")
+        traceback.print_exc()
         flash('Під час аналізу фото сталася помилка.', 'danger')
         return redirect(url_for('main.my_photos'))
 
@@ -620,6 +638,23 @@ def panel():
         organ = photo.organ_type or "Не вказано"
         structured_photos[pt][animal][organ].append(photo)
     return render_template('admin_panel.html', structured_photos=structured_photos)
+
+@admin_bp.route('/announcement', methods=['GET', 'POST'])
+@login_required
+@manager_required
+def manage_announcement():
+    announcement = Announcement.query.first()
+    if request.method == 'POST':
+        content = request.form.get('content', '')
+        if announcement:
+            announcement.content = content
+        else:
+            announcement = Announcement(content=content)
+            db.session.add(announcement)
+        db.session.commit()
+        flash('Оголошення успішно оновлено.', 'success')
+        return redirect(url_for('admin.manage_announcement'))
+    return render_template('admin_announcement.html', announcement=announcement)
 
 @admin_bp.route('/complaints')
 @login_required
@@ -753,7 +788,8 @@ def admin_delete_user(user_id):
 def delete_enterprise(enterprise_id):
     enterprise = db.session.get(Enterprise, enterprise_id)
     if enterprise:
-        if enterprise.photos.first():
+        # Перевірка, чи є фото, прив'язані до цього підприємства
+        if enterprise.photos: # Змінено з .first() на пряму перевірку
             flash(f'Неможливо видалити підприємство "{enterprise.name}", оскільки до нього прив\'язані фотографії.', 'warning')
             return redirect(url_for('admin.manage_enterprises'))
         
@@ -854,6 +890,9 @@ def download_excel_report(report_id):
         flash('Звіт не знайдено або у вас немає доступу.', 'danger')
         return redirect(url_for('report.archive'))
     # ... (решта коду без змін) ...
+    # Припускаємо, що workbook створюється десь тут
+    workbook = openpyxl.Workbook() # Потрібно створити екземпляр
+    # ...
     virtual_workbook = io.BytesIO(); workbook.save(virtual_workbook); virtual_workbook.seek(0)
     filename = f'Zvit_{report.id}_{report.enterprise.name}_{report.report_year}_{report.report_month}.xlsx'
     return send_file(virtual_workbook, as_attachment=True, download_name=filename, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
