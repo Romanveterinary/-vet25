@@ -55,19 +55,31 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or 'sqlit
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # ====================================================================
-# 2. Налаштування Google Cloud Storage (ЗАКОМЕНТОВАНО)
+# 2. Налаштування Google Cloud Storage
 # ====================================================================
 storage_client = None
 bucket = None
-# if GCS_AVAILABLE:
-#     # ... код для GCS ...
-# else:
-#     print("ПОПЕРЕДЖЕННЯ: Бібліотека google-cloud-storage не знайдена.")
+BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
 
-# ====================================================================
-# 3. Ініціалізація та моделі даних
-# ====================================================================
-
+if GCS_AVAILABLE and BUCKET_NAME:
+    try:
+        # Якщо є змінна з вмістом JSON-ключа, використовуємо її
+        if 'GOOGLE_APPLICATION_CREDENTIALS_JSON' in os.environ:
+            gcs_credentials_json_str = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS_JSON')
+            # Перетворюємо рядок JSON на словник
+            gcs_credentials_json = json.loads(gcs_credentials_json_str)
+            storage_client = storage.Client.from_service_account_info(gcs_credentials_json)
+        else:
+            # Інакше, пробуємо стандартний шлях (для локальної розробки)
+            storage_client = storage.Client()
+        
+        bucket = storage_client.get_bucket(BUCKET_NAME)
+        print(f"Успішно підключено до Google Cloud Storage, бакет: {BUCKET_NAME}")
+    except Exception as e:
+        print(f"ПОМИЛКА: Не вдалося підключитися до Google Cloud Storage. {e}")
+        traceback.print_exc()
+else:
+    print("ПОПЕРЕДЖЕННЯ: Google Cloud Storage не налаштовано (немає GCS_BUCKET_NAME або бібліотеки). Використовується локальне сховище.")
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
