@@ -108,6 +108,15 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
+        // Функція для показу/приховування пароля
+        function togglePasswordVisibility(fieldId) {
+            const el = document.getElementById(fieldId);
+            if (el) {
+                el.type = (el.type === "password") ? "text" : "password";
+            }
+        }
+
+        // Код для модального вікна для збільшення фото
         var imageModal = document.getElementById('imageModal');
         if (imageModal) {
             imageModal.addEventListener('show.bs.modal', function (event) {
