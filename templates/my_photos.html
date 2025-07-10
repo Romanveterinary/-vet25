@@ -40,12 +40,15 @@
                     <p class="card-text"><small class="text-muted">Завантажено: {{ photo.upload_date.strftime('%Y-%m-%d %H:%M') }}</small></p>
                 </div>
                 <div class="card-footer">
-                    <!-- ЗМІНЕНО: Умова для відображення кнопки "Аналізувати" -->
                     {% if not is_video %}
                         {% if photo.analyzed_filepath %}
                             <a href="{{ url_for('photo.view_details', photo_id=photo.id) }}" class="btn btn-success w-100">Переглянути обговорення</a>
                         {% else %}
-                            <a href="{{ url_for('photo.perform_analysis', photo_id=photo.id) }}" class="btn btn-primary w-100">Аналізувати</a>
+                            {% if photo.photo_type == 'Патологія органів' %}
+                                <button type="button" class="btn btn-secondary w-100" disabled title="Аналіз для цього типу фото тимчасово вимкнено через високе навантаження на сервер.">Аналіз недоступний</button>
+                            {% else %}
+                                <a href="{{ url_for('photo.perform_analysis', photo_id=photo.id) }}" class="btn btn-primary w-100">Аналізувати</a>
+                            {% endif %}
                         {% endif %}
                     {% else %}
                         <a href="{{ url_for('photo.view_details', photo_id=photo.id) }}" class="btn btn-info w-100">Перейти до обговорення</a>
