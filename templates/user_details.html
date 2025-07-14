@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Деталі про користувача {{ user.username }}{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="my-4">Інформація про: <strong>{{ user.username }}</strong></h1>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Назад до панелі</a>
+    </div>
+    <p><strong>Дата реєстрації:</strong> {{ user.registration_date.strftime('%Y-%m-%d %H:%M') if user.registration_date else 'N/A' }}</p>
+    <hr>
+    
+    <!-- НОВИЙ БЛОК: Коментарі користувача -->
+    <h2 class="mt-4">Останні коментарі користувача</h2>
+    {% if comments %}
+        {% for comment in comments %}
+        <div class="card mb-2">
+            <div class="card-body">
+                <p class="card-text">"{{ comment.text }}"</p>
+                <footer class="blockquote-footer">
+                   До фото 
+                   <a href="{{ url_for('show_analysis', photo_id=comment.photo_id) }}">{{ comment.photo.filename }}</a> 
+                   <cite>({{ comment.timestamp.strftime('%d-%m-%Y %H:%M') }})</cite>
+                </footer>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-info">Користувач ще не залишив жодного коментаря.</div>
+    {% endif %}
+
+    <hr>
+    <h2 class="mt-4">Історія завантажень ({{ photos|length }})</h2>
+    {% if photos %}<div class="table-responsive"><table class="table table-striped table-hover mt-3"><thead><tr><th>Фото</th><th>Тип</th><th>Підприємство</th><th>Дата</th><th>Статус</th></tr></thead><tbody>{% for photo in photos %}<tr><td><a href="{{ url_for('show_analysis', photo_id=photo.id) }}"><img src="{{ url_for('static', filename='uploads/' + photo.filepath) }}" alt="{{ photo.filename }}" style="width: 100px; height: auto;"></a></td><td><span class="badge bg-dark">{{ photo.photo_type }}</span></td><td>{{ photo.enterprise.name if photo.enterprise else 'Не вказано' }}</td><td>{{ photo.upload_date.strftime('%Y-%m-%d %H:%M') }}</td><td>{% if photo.analyzed_filepath %}<span class="badge bg-success">Проаналізовано</span>{% else %}<span class="badge bg-warning text-dark">Не проаналізовано</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="alert alert-info mt-3">Немає завантажених фото.</div>{% endif %}
+</div>
+{% endblock %}

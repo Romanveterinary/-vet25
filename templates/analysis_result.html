@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Обговорення: {{ photo.filename }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Обговорення випадку</h2>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header"><strong>Оригінал</strong></div>
+                <div class="card-body text-center">
+                    <img src="{{ photo.filepath }}"
+                         alt="Оригінальне фото"
+                         class="img-fluid"
+                         style="cursor: pointer; max-height: 60vh;"
+                         data-bs-toggle="modal"
+                         data-bs-target="#imageModal"
+                         data-img-src="{{ photo.filepath }}">
+                    <p class="text-muted mt-2 mb-0"><small>Натисніть на зображення, щоб збільшити</small></p>
+                </div>
+            </div>
+        </div>
+
+        {% if photo.analyzed_filepath %}
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 border-primary">
+                <div class="card-header bg-primary text-white"><strong>Після аналізу</strong></div>
+                <div class="card-body text-center">
+                     <img src="{{ photo.analyzed_filepath }}"
+                         alt="Проаналізоване фото"
+                         class="img-fluid"
+                         style="cursor: pointer; max-height: 60vh;"
+                         data-bs-toggle="modal"
+                         data-bs-target="#imageModal"
+                         data-img-src="{{ photo.analyzed_filepath }}">
+                    <p class="text-muted mt-2 mb-0"><small>Натисніть на зображення, щоб збільшити</small></p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-footer text-muted d-flex justify-content-between align-items-center">
+            <div>
+                <strong>Підприємство:</strong> {{ photo.enterprise.name if photo.enterprise else 'Не вказано' }} |
+                <strong>Завантажив:</strong> {{ photo.user.username }} |
+                <strong>Дата:</strong> {{ photo.upload_date.strftime('%Y-%m-%d %H:%M') }}
+            </div>
+            {% if current_user.is_admin %}
+            <div>
+                <form action="{{ url_for('photo.delete_photo', photo_id=photo.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('УВАГА! Ви впевнені, що хочете видалити це ФОТО та всі коментарі до нього?');">
+                        Видалити фото (Адмін)
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <h4>Коментарі ({{ comments|length }})</h4>
+            <hr>
+            {% for comment in comments %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <p class="card-text">{{ comment.text | nl2br }}</p>
+                    <p class="card-subtitle text-muted text-end small">
+                        -- <strong>{{ comment.author.username }}</strong>, {{ comment.timestamp.strftime('%Y-%m-%d %H:%M') }}
+                        {% if current_user.id == comment.user_id or current_user.is_admin %}
+                            <form action="{{ url_for('photo.delete_comment', comment_id=comment.id) }}" method="POST" class="d-inline ms-2">
+                                <button type="submit" class="btn btn-outline-danger btn-sm py-0" onclick="return confirm('Ви впевнені?');">Видалити</button>
+                            </form>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            {% else %}
+            <p>Коментарів ще немає. Будьте першим!</p>
+            {% endfor %}
+
+            <div class="mt-4">
+                <h4>Додати коментар</h4>
+                <form method="POST" action="{{ url_for('photo.view_details', photo_id=photo.id) }}">
+                    <div class="mb-3">
+                        <textarea name="comment_text" class="form-control" rows="3" required placeholder="Ваш коментар..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Відправити</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

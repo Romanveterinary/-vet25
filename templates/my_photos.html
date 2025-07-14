@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Мої медіафайли{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Мої завантажені файли</h1>
+    {% if photos %}
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for photo in photos %}
+        <div class="col">
+            <div class="card h-100">
+                
+                {% set is_video = photo.filename.lower().endswith(('.mp4', '.mov', '.avi', '.webm')) %}
+                
+                <div class="card-img-top-container position-relative" style="height: 225px; background-color: black; display: flex; align-items: center; justify-content: center;">
+                    <a href="{{ url_for('photo.view_details', photo_id=photo.id) }}" class="d-block w-100 h-100">
+                        {% if is_video %}
+                            <video style="height: 100%; width: 100%; object-fit: contain;">
+                                <source src="{{ photo.filepath if photo.filepath.startswith('http') else url_for('static', filename=photo.filepath) }}" type="video/mp4">
+                            </video>
+                        {% else %}
+                            <img src="{{ (photo.analyzed_filepath or photo.filepath) if (photo.analyzed_filepath or photo.filepath).startswith('http') else url_for('static', filename=(photo.analyzed_filepath or photo.filepath)) }}" 
+                                 class="card-img-top" 
+                                 style="height: 100%; width: 100%; object-fit: cover;" 
+                                 alt="Фото">
+                        {% endif %}
+                    </a>
+                    <div class="card-img-overlay d-flex justify-content-between align-items-start p-2" style="pointer-events: none;">
+                        <div><span class="badge bg-dark" style="pointer-events: auto;">{{ photo.photo_type }}</span></div>
+                        {% if photo.analyzed_filepath and not is_video %}<span class="badge bg-success" style="pointer-events: auto;">Проаналізовано</span>{% endif %}
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <h5 class="card-title">{{ photo.filename }}</h5>
+                    {% if photo.enterprise %}<p class="card-text"><small class="text-muted">Підприємство: <strong>{{ photo.enterprise.name }}</strong></small></p>{% endif %}
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item">Трихінельоз: {% if photo.checked_for_trichinella %}✅{% else %}❌{% endif %}</li>
+                        <li class="list-group-item">Цистицеркоз: {% if photo.checked_for_anisakids %}✅{% else %}❌{% endif %}</li>
+                    </ul>
+                    <p class="card-text"><small class="text-muted">Завантажено: {{ photo.upload_date.strftime('%Y-%m-%d %H:%M') }}</small></p>
+                </div>
+                <div class="card-footer">
+                    {% if not is_video %}
+                        {% if photo.analyzed_filepath %}
+                            <a href="{{ url_for('photo.view_details', photo_id=photo.id) }}" class="btn btn-success w-100">Переглянути обговорення</a>
+                        {% else %}
+                            {% if photo.photo_type == 'Патологія органів' %}
+                                <button type="button" class="btn btn-secondary w-100" disabled title="Аналіз для цього типу фото тимчасово вимкнено через високе навантаження на сервер.">Аналіз недоступний</button>
+                            {% else %}
+                                <a href="{{ url_for('photo.perform_analysis', photo_id=photo.id) }}" class="btn btn-primary w-100">Аналізувати</a>
+                            {% endif %}
+                        {% endif %}
+                    {% else %}
+                        <a href="{{ url_for('photo.view_details', photo_id=photo.id) }}" class="btn btn-info w-100">Перейти до обговорення</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info" role="alert">Ви ще не завантажили жодного файлу.</div>
+    {% endif %}
+</div>
+{% endblock %}

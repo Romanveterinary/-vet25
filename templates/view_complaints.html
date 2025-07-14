@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Звернення громадян{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Звернення від громадян</h1>
+    <p class="text-muted">На цій сторінці відображаються скарги на якість продукції, надіслані споживачами.</p>
+    <hr>
+    
+    {% if complaints %}
+        <div class="row row-cols-1 row-cols-md-2 g-4">
+            {% for complaint in complaints %}
+            <div class="col">
+                <div class="card h-100">
+                    <div class="row g-0">
+                        <div class="col-md-5">
+                            <img src="{{ url_for('static', filename=complaint.photo_filepath) }}" class="img-fluid rounded-start" alt="{{ complaint.photo_filename }}" style="object-fit: cover; height: 100%;">
+                        </div>
+                        <div class="col-md-7">
+                            <div class="card-body">
+                                <h5 class="card-title">Звернення #{{ complaint.id }}</h5>
+                                <p class="card-text"><strong>Від:</strong> {{ complaint.name }}<br>
+                                   <strong>Телефон:</strong> {{ complaint.phone }}</p>
+                                <p class="card-text"><strong>Місце:</strong> {{ complaint.location }}</p>
+                                <p class="card-text"><strong>Опис:</strong> {{ complaint.description|truncate(100) }}</p>
+                                <p class="card-text"><small class="text-muted">Надійшло: {{ complaint.submission_date.strftime('%Y-%m-%d %H:%M') }}</small></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info" role="alert">
+            Наразі немає жодних звернень від громадян.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Перегляд звіту №{{ report.id }}{% endblock %}
+
+{% block content %}
+<style>
+    .report-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; table-layout: fixed; }
+    .report-table th, .report-table td { border: 1px solid #ccc; padding: 6px; text-align: center; vertical-align: middle; }
+    .report-table th { background-color: #f2f2f2; }
+    .report-table td:first-child { text-align: left; font-weight: 500; width: 35%; }
+    .section-header { font-weight: bold; background-color: #e9e9e9; text-align: left !important; }
+    .sub-item { padding-left: 25px !important; font-weight: normal !important; }
+    .sub-sub-item { padding-left: 45px !important; font-style: italic; font-weight: normal !important; }
+    .header-like-row { background-color: #f8f9fa; }
+    .value-cell { font-weight: bold; }
+</style>
+
+<div class="container-fluid">
+    <h1 class="my-4">Перегляд щомісячного звіту</h1>
+    
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">АНАЛІЗ ПРОВЕДЕНОЇ РОБОТИ ЛІКАРЕМ – ВЕТСАНЕКСПЕРТОМ</h5>
+                <div>
+                    <a href="{{ url_for('report.download_excel_report', report_id=report.id) }}" class="btn btn-sm btn-success">
+                        <i class="bi bi-file-earmark-excel"></i> Завантажити в Excel
+                    </a>
+                    <a href="{{ url_for('report.archive') }}" class="btn btn-sm btn-outline-secondary">
+                        ← Назад до архіву
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row border-bottom pb-3 mb-3">
+                <div class="col-md-4">
+                    <strong>Підприємство:</strong> {{ report.enterprise.name }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Рік:</strong> {{ report.report_year }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Місяць:</strong> {{ uk_months[report.report_month] | title }}
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered report-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Найменування показника</th>
+                            {% for animal_name in animal_types_display.values() %}
+                                <th>{{ animal_name }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="7" class="section-header">І. Кількість і стан тварин які надійшли на забій</td></tr>
+                        <tr><td>1. Надійшло і оглянуто тварин</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].received }}</td>{% endfor %}</tr>
+                        <tr><td>2. Зареєстровано хвороб, всього:</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].diseases_registered }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">сибірка</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].disease_sybirka }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">туберкульоз</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].disease_tuberkuloz }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">бруцельоз</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].disease_brutseloz }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">лепто</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].disease_lepto }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">бешиха свиней</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].disease_beshykha_svynei }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">чума свиней</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].disease_chuma_svynei }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">незаразні хвороби</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].disease_nezarazni }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">інші заразні хвороби</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].disease_inshi_zarazni }}</td>{% endfor %}</tr>
+                        <tr><td>3. Загинуло від травм на підприємстві</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].died_from_trauma }}</td>{% endfor %}</tr>
+                        <tr><td>4. Направлено на санбійню</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].sent_to_sanbiynia }}</td>{% endfor %}</tr>
+
+                        <tr><td colspan="7" class="section-header">ІІ. Наслідки післязабійної ветеринарно-санітарної експертизи</td></tr>
+                        <tr><td>1. Виявлені хвороби, випадків:</td><td colspan="6" class="header-like-row"></td></tr>
+                        <tr><td class="sub-item">сибірка</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_sybirka }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">туберкульоз (всього)</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_tuberkuloz_total }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-sub-item">з них утилізовано (туш)</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_tuberkuloz_util }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-sub-item">санбіопереробка</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_tuberkuloz_sanpererobka }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">лейкоз</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_leikoz }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">цистицеркоз (фіноз)</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_tsystytserkoz_finoz }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">ехінококоз</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_ekhinokokoz }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">фасціольоз</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_fastsioloz }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">бруцельоз</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_brutseloz }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">трихінельоз</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_trykhineloz }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">лептоспіроз</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_leptospiroz }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">інші заразні хвороби</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_inshi_zarazni }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">інші інвазійні хвороби</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_inshi_invaziyni }}</td>{% endfor %}</tr>
+                        <tr><td>2. незаразні хвороби</td><td colspan="6" class="header-like-row"></td></tr>
+                        <tr><td class="sub-item">направлено на утилізацію</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_nezarazni_util }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">на промпереробку</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_nezarazni_prompererobka }}</td>{% endfor %}</tr>
+                        <tr><td class="sub-item">на утильзавод</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_nezarazni_na_utylzavod }}</td>{% endfor %}</tr>
+                        <tr><td>3. Направлено на знешкодження (туш)</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_zneshkodzhennia_tush }}</td>{% endfor %}</tr>
+                        <tr><td>4. Направлено на утильзавод (голів)</td>{% for animal in report_data.keys() %}<td>{{ report_data[animal].expert_utylzavod_holiv }}</td>{% endfor %}</tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h5 class="mt-4">III. Виготовлено всього продукції</h5>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">(партій/видів/кг)</h6>
+                            <p class="card-text">{{ report.production_total or 'Не вказано' }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                     <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">Досліджено продукції (видів)</h6>
+                            <p class="card-text">{{ report.production_researched or 'Не вказано' }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                     <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">Утилізовано відходів (тонн)</h6>
+                            <p class="card-text">{{ report.waste_utilized_ton }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if report.shortcomings_violations %}
+            <hr class="my-4">
+            <div class="mt-3">
+                <h5>Виявлені недоліки та порушення</h5>
+                <p class="card-text bg-light p-3 rounded" style="white-space: pre-wrap;">{{ report.shortcomings_violations }}</p>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}

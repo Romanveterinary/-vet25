@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Аналітика{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Аналітика та звіти</h1>
+
+    <div class="row">
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-images"></i> Фото за тиждень</h5>
+                    <p class="card-text fs-2">{{ total_photos_week }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-image-alt"></i> Фото за сьогодні</h5>
+                    <p class="card-text fs-2">{{ photos_today }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-12 col-lg-4 mb-4">
+            <div class="card text-dark bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-graph-up-arrow"></i> Часта патологія (30 д.)</h5>
+                    <p class="card-text fs-5">{{ most_common_pathology }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-bar-chart-line-fill"></i> Активність завантажень за останні 30 днів
+        </div>
+        <div class="card-body">
+            <canvas id="uploadsChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-people-fill"></i> Статистика по користувачах (за останній тиждень)
+        </div>
+        <div class="card-body">
+             <div class="d-flex justify-content-end mb-3">
+                <a href="{{ url_for('admin.download_report', period='week') }}" class="btn btn-sm btn-outline-success me-2"><i class="bi bi-file-earmark-excel"></i> Звіт за тиждень</a>
+                <a href="{{ url_for('admin.download_report', period='month') }}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Звіт за місяць</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Користувач</th>
+                            <th>Завантажено фото</th>
+                            <th>Написано коментарів</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in user_stats %}
+                        <tr>
+                            <td>{{ stat.username }}</td>
+                            <td>{{ stat.photo_count }}</td>
+                            <td>{{ stat.comment_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Перевірка, чи існують дані для графіка
+    const chartLabels = {{ chart_labels | safe }};
+    const chartValues = {{ chart_values | safe }};
+
+    if (chartLabels && chartValues) {
+        const ctx = document.getElementById('uploadsChart');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Кількість завантажень',
+                    data: chartValues,
+                    fill: true,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            // Дозволяємо тільки цілі числа на осі Y
+                            stepSize: 1
+                        }
+                    }
+                },
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Обговорення випадку{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-body">
+                    {% if post_type == 'photo' and post.analyzed_filepath %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Оригінал</h5>
+                                <a href="{{ post.filepath }}" target="_blank">
+                                    <img src="{{ post.filepath }}" class="img-fluid rounded" alt="Оригінальне фото">
+                                </a>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Результат аналізу</h5>
+                                 <a href="{{ post.analyzed_filepath }}" target="_blank">
+                                     <img src="{{ post.analyzed_filepath }}" class="img-fluid rounded" alt="Проаналізоване фото">
+                                 </a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <a href="{{ post.filepath if post_type == 'photo' else post.photo_filepath }}" target="_blank">
+                              <img src="{{ post.filepath if post_type == 'photo' else post.photo_filepath }}" class="img-fluid rounded" alt="Головне фото">
+                        </a>
+                    {% endif %}
+                </div>
+                 <div class="card-body">
+                    {% if post_type == 'photo' %}
+                        <h5 class="card-title mt-3">Випадок від: {{ post.user.username }}</h5>
+                        <p class="card-text">Підприємство: {{ post.enterprise.name if post.enterprise else 'Не вказано' }}</p>
+                        <p class="card-text">Тип фото: {{ post.photo_type }}</p>
+                        <p class="card-text"><small class="text-muted">Завантажено: {{ post.upload_date.strftime('%Y-%m-%d %H:%M') }}</small></p>
+                    {% else %}
+                        <h5 class="card-title mt-3 text-danger">Публічне звернення від: {{ post.submitter_name }}</h5>
+                        <p class="card-text">Місце: {{ post.location }}</p>
+                        <p class="card-text"><strong>Опис обставин:</strong> {{ post.circumstances }}</p>
+                        <p class="card-text"><small class="text-muted">Надіслано: {{ post.submission_date.strftime('%Y-%m-%d %H:%M') }}</small></p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            <h4>Обговорення</h4>
+            <hr>
+            
+            <div class="mb-4">
+                <h5>Залишити коментар</h5>
+                <form method="POST" action="{{ url_for('view_post', post_type=post_type, post_id=post.id) }}">
+                    <div class="mb-3">
+                        <textarea class="form-control" name="comment_text" rows="3" placeholder="Ваш коментар..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Відправити</button>
+                </form>
+            </div>
+
+            <div class="comments-list" style="max-height: 400px; overflow-y: auto;">
+                {% for comment in comments %}
+                <div class="card mb-2">
+                    <div class="card-body p-2">
+                        <p class="mb-1">{{ comment.text }}</p>
+                        <small class="text-muted">-- <strong>{{ comment.author.username }}</strong>, {{ comment.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted">Коментарів ще немає. Будьте першим!</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

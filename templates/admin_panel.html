@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Панель адміністратора</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Резервне копіювання</h3>
+        </div>
+        <div class="card-body">
+            <p class="card-text">Створіть та завантажте повний архів усіх завантажених фотографій та коментарів у системі.</p>
+            <a href="{{ url_for('admin.create_archive') }}" class="btn btn-success">Завантажити архів</a>
+        </div>
+    </div>
+
+    <hr>
+
+    <h2>Завантажені фотографії</h2>
+    
+    {% if structured_photos %}
+        {% for photo_type, animals in structured_photos.items() %}
+            <h3 class="mt-4">{{ photo_type }}</h3>
+            {% for animal_species, organs in animals.items() %}
+                <h4 class="mt-3 text-secondary">{{ animal_species }}</h4>
+                {% for organ_type, photos in organs.items() %}
+                    <h5>{{ organ_type }}</h5>
+                    <div class="row row-cols-1 row-cols-md-3 g-4">
+                        {% for photo in photos %}
+                        <div class="col">
+                            <div class="card h-100">
+                                <a href="{{ url_for('photo.view_details', photo_id=photo.id) }}">
+                                    <img src="{{ url_for('static', filename=photo.filepath) }}" class="card-img-top" alt="{{ photo.filename }}" style="height: 200px; object-fit: cover;">
+                                </a>
+                                <div class="card-body">
+                                    <p class="card-text"><small class="text-muted">Завантажив: {{ photo.user.username }}</small></p>
+                                    <p class="card-text"><small class="text-muted">Дата: {{ photo.upload_date.strftime('%Y-%m-%d %H:%M') }}</small></p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            {% endfor %}
+        {% endfor %}
+    {% else %}
+        <p>Наразі немає завантажених фотографій.</p>
+    {% endif %}
+
+</div>
+{% endblock %}

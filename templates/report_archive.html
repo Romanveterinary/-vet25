@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Архів щомісячних звітів{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center my-4">
+        <h1>Архів щомісячних звітів</h1>
+        <a href="{{ url_for('report.create_report') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Створити новий звіт
+        </a>
+    </div>
+
+    {% if reports %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Підприємство</th>
+                    <th>Період</th>
+                    <th>Дата подання</th>
+                    <th>Дії</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                <tr>
+                    <td>{{ report.id }}</td>
+                    <td>{{ report.enterprise.name }}</td>
+                    <td>{{ uk_months[report.report_month] | title }} {{ report.report_year }}</td>
+                    <td>{{ report.submission_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        <a href="{{ url_for('report.view_report', report_id=report.id) }}" class="btn btn-sm btn-info">
+                           <i class="bi bi-eye"></i> Переглянути
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        Ви ще не створили жодного звіту.
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Панель адміністратора{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Панель адміністратора</h1>
+
+    <ul class="nav nav-tabs" id="adminTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button">Керування користувачами</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="photos-tab" data-bs-toggle="tab" data-bs-target="#photos" type="button">Усі фотографії</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="inquiries-tab" data-bs-toggle="tab" data-bs-target="#inquiries" type="button">
+                Публічні звернення <span class="badge bg-danger">{{ inquiries|length }}</span>
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="adminTabContent">
+        
+        <div class="tab-pane fade show active" id="users" role="tabpanel">
+            
+            <div class="mt-4">
+                <h3>Очікують на схвалення ({{ pending_users|length }})</h3>
+                {% if pending_users %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover mt-3">
+                        <thead class="table-warning">
+                            <tr><th>Ім'я</th><th>Дата реєстрації</th>{% if current_user.is_admin %}<th>Дії</th>{% endif %}</tr>
+                        </thead>
+                        <tbody>
+                            {% for user in pending_users %}
+                            <tr>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.registration_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                {% if current_user.is_admin %}
+                                <td>
+                                    <form action="{{ url_for('approve_user', user_id=user.id) }}" method="POST" style="display:inline;">
+                                        <button type="submit" class="btn btn-success btn-sm">Схвалити</button>
+                                    </form>
+                                    <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Ви впевнені, що хочете відхилити та видалити цього користувача?');">
+                                        <button type="submit" class="btn btn-danger btn-sm">Відхилити</button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">Немає нових запитів на реєстрацію.</p>
+                {% endif %}
+            </div>
+
+            <hr class="my-5">
+
+            <div class="mt-4">
+                <h3>Активні користувачі ({{ active_users|length }})</h3>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover mt-3">
+                        <thead>
+                            <tr><th>Ім'я</th><th>Роль</th><th>Дата реєстрації</th><th>Всього фото</th>{% if current_user.is_admin %}<th>Дії</th>{% endif %}</tr>
+                        </thead>
+                        <tbody>
+                            {% for user in active_users %}
+                            <tr>
+                                <td><a href="{{ url_for('user_details', user_id=user.id) }}">{{ user.username }}</a></td>
+                                <td><span class="badge bg-secondary">{{ user.role }}</span></td>
+                                <td>{{ user.registration_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ user.photos.count() }}</td>
+                                {% if current_user.is_admin %}
+                                <td>
+                                    <form action="{{ url_for('delete_user', user_id=user.id) }}" method="post" onsubmit="return confirm('УВАГА! Ви впевнені, що хочете видалити користувача \'{{ user.username }}\' та ВСІ його дані?');">
+                                        <button type="submit" class="btn btn-danger btn-sm">Видалити</button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="photos" role="tabpanel">
+            <h2 class="mt-4">Всі фото ({{ photos|length }})</h2>
+            <div class="row row-cols-1 row-cols-md-3 g-4 mt-2">
+                {% for photo in photos %}
+                <div class="col">
+                    <div class="card h-100">
+                        <a href="{{ url_for('view_post', post_type='photo', post_id=photo.id) }}">
+                            <img src="{{ photo.filepath }}" class="card-img-top" style="height: 200px; object-fit: cover;" alt="Фото">
+                        </a>
+                        <div class="card-body">
+                            <p class="card-text">
+                                <small class="text-muted">Автор: <strong>{{ photo.user.username }}</strong></small><br>
+                                {% if photo.enterprise %}<small class="text-muted">Підприємство: <strong>{{ photo.enterprise.name }}</strong></small><br>{% endif %}
+                            </p>
+                        </div>
+                        {% if current_user.is_admin %}
+                        <div class="card-footer">
+                            <form action="{{ url_for('delete_photo', photo_id=photo.id) }}" method="post" onsubmit="return confirm('Ви впевнені, що хочете видалити це фото та всі його коментарі?');">
+                                <button type="submit" class="btn btn-danger btn-sm w-100">Видалити фото</button>
+                            </form>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="tab-pane fade" id="inquiries" role="tabpanel">
+            <h3 class="mt-4">Публічні звернення</h3>
+            {% if inquiries %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>Ім'я</th>
+                            <th>Телефон</th>
+                            <th>Місце</th>
+                            <th style="min-width: 200px;">Опис</th>
+                            <th>Фото</th>
+                            {% if current_user.is_admin %}<th>Дії</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inquiry in inquiries %}
+                        <tr>
+                            <td>{{ inquiry.submission_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ inquiry.submitter_name }}</td>
+                            <td>{{ inquiry.submitter_phone or 'Не вказано' }}</td>
+                            <td>{{ inquiry.location }}</td>
+                            <td>{{ inquiry.circumstances }}</td>
+                            <td>
+                                <a href="{{ url_for('view_post', post_type='inquiry', post_id=inquiry.id) }}" class="btn btn-info btn-sm">Переглянути</a>
+                            </td>
+                            {% if current_user.is_admin %}
+                            <td>
+                                <form action="{{ url_for('delete_inquiry', inquiry_id=inquiry.id) }}" method="POST" onsubmit="return confirm('Ви впевнені, що хочете видалити це звернення?');">
+                                    <button type="submit" class="btn btn-danger btn-sm">Видалити</button>
+                                </form>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-center text-muted mt-4">Нових публічних звернень немає.</p>
+            {% endif %}
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

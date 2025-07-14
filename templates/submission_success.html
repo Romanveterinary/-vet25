@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5 mb-5 text-center">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="alert alert-success" role="alert">
+                <h4 class="alert-heading">Дякуємо! Ваше звернення успішно відправлено.</h4>
+                <p>Воно буде розглянуте спеціалістами найближчим часом.</p>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5 class="card-title">Ваше унікальне посилання для перевірки статусу</h5>
+                    <p class="card-text">БУДЬ ЛАСКА, ЗБЕРЕЖІТЬ ЦЕ ПОСИЛАННЯ! Тільки за ним ви зможете відслідкувати відповідь на ваше звернення. Скопіюйте його і збережіть у надійному місці.</p>
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" value="{{ inquiry_url }}" id="inquiryUrl" readonly>
+                        <button class="btn btn-outline-secondary" type="button" onclick="copyUrl()">Скопіювати</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <a href="{{ url_for('safety.complaint_guide') }}" class="btn btn-primary">Як подати офіційну скаргу?</a>
+                <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Повернутись на головну</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyUrl() {
+    var copyText = document.getElementById("inquiryUrl");
+    copyText.select();
+    copyText.setSelectionRange(0, 99999); // For mobile devices
+    document.execCommand("copy");
+    alert("Посилання скопійовано: " + copyText.value);
+}
+</script>
+{% endblock %}

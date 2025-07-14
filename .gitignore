@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+.venv/
+env/
+.env
+
+# База даних (ніколи не завантажуйте її на публічний GitHub)
+*.db
+*.sqlite3
+
+# Файли IDE
+.vscode/
+.idea/
+
+# Залежності
+/instance

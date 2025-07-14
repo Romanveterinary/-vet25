@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Бланки документів{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center my-4">
+        <h1>Бланки документів</h1>
+        {% if current_user.is_manager %}
+        <a href="{{ url_for('document.upload_doc') }}" class="btn btn-primary">
+            <i class="bi bi-upload"></i> Завантажити новий документ
+        </a>
+        {% endif %}
+    </div>
+
+    {% if documents %}
+    <div class="list-group">
+        {% for doc in documents %}
+        <div class="list-group-item list-group-item-action flex-column align-items-start">
+            <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">{{ doc.title }}</h5>
+                <small>Завантажено: {{ doc.upload_date.strftime('%Y-%m-%d') }}</small>
+            </div>
+            {% if doc.description %}
+            <p class="mb-1">{{ doc.description }}</p>
+            {% endif %}
+            <div class="mt-2">
+                <a href="{{ url_for('document.download_doc', doc_id=doc.id) }}" class="btn btn-success btn-sm">
+                    <i class="bi bi-download"></i> Завантажити
+                </a>
+                {% if current_user.is_manager %}
+                <form method="post" action="{{ url_for('document.delete_doc', doc_id=doc.id) }}" class="d-inline" onsubmit="return confirm('Ви впевнені, що хочете видалити цей документ?');">
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        <i class="bi bi-trash"></i> Видалити
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info" role="alert">
+        Ще не завантажено жодного документа.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Завантажити медіафайл{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title text-center">Завантаження фото або відео</h2>
+                <form method="post" enctype="multipart/form-data">
+
+                    <div class="mb-3">
+                        <label for="enterprise_id" class="form-label">Підприємство</label>
+                        <select class="form-select" id="enterprise_id" name="enterprise_id" required>
+                            <option value="" disabled selected>Виберіть підприємство...</option>
+                            {% for enterprise in enterprises %}
+                            <option value="{{ enterprise.id }}">{{ enterprise.name }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if not enterprises %}
+                        <div class="form-text text-danger">У вас ще немає жодного підприємства. Будь ласка, додайте його
+                            на сторінці <a href="{{ url_for('main.my_enterprises') }}">Мої підприємства</a>.</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Тип дослідження</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="photo_type" id="type_microscopy"
+                                value="Мікроскопія" required>
+                            <label class="form-check-label" for="type_microscopy">Мікроскопія (зрізи)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="photo_type" id="type_pathology"
+                                value="Патологія">
+                            <label class="form-check-label" for="type_pathology">Патологія (органи, туші, відео)</label>
+                        </div>
+                    </div>
+
+                    <div id="pathology_fields">
+                        <div class="mb-3">
+                            <label for="animal_species" class="form-label">Вид тварини</label>
+                            <select class="form-select" id="animal_species" name="animal_species">
+                                <option value="" selected>Не вказано</option>
+                                <option value="Риба">Риба</option>
+                                <option value="ВРХ">ВРХ</option>
+                                <option value="Свиня">Свиня</option>
+                                <option value="Вівця">Вівця</option>
+                                <option value="Кріль">Кріль</option>
+                                <option value="Індик">Індик</option>
+                                <option value="Курка">Курка</option>
+                                <option value="Куріпка">Куріпка</option>
+                                <option value="Страус">Страус</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="organ_type" class="form-label">Орган / Частина</label>
+                            <select class="form-select" id="organ_type" name="organ_type">
+                                <option value="голова">Голова</option>
+                                <option value="язик">Язик</option>
+                                <option value="ніжки діафрагми">Ніжки діафрагми</option>
+                                <option value="" selected>Не вказано</option>
+                                <option value="Печінка">Печінка</option>
+                                <option value="Легені">Легені</option>
+                                <option value="Серце">Серце</option>
+                                <option value="Лімфовузол">Лімфовузол</option>
+                                <option value="Селезінка">Селезінка</option>
+                                <option value="Кишечник">Кишечник</option>
+                                <option value="Тушка">Тушка</option>
+                                <option value="Туша">Туша</option>
+                                <option value="Частина туші">Частина туші</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Виберіть файл (фото або відео)</label>
+                        <input class="form-control" type="file" id="file" name="file" accept="image/*,video/*" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Ознаки (для мікроскопії)</label>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="check_trichinella" name="check_trichinella">
+                            <label class="form-check-label" for="check_trichinella">Трихінельоз</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="check_cysticercosis" name="check_cysticercosis">
+                            <label class="form-check-label" for="check_cysticercosis">Цистицеркоз</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="check_anisakids" name="check_anisakids">
+                            <label class="form-check-label" for="check_anisakids">Анізакідоз</label>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary" {% if not enterprises %}disabled{% endif
+                            %}>Завантажити</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

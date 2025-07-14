@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Статус звернення{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Деталі вашого звернення</h3>
+                </div>
+                <div class="card-body">
+                    <p><strong>Унікальний номер:</strong> {{ report.unique_id }}</p>
+                    <p><strong>Дата подання:</strong> {{ report.submission_date.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                    <p><strong>Статус:</strong> <span class="badge bg-warning text-dark">В обробці</span></p>
+                    <hr>
+                    <h5>Опис проблеми:</h5>
+                    <p class="text-muted" style="white-space: pre-wrap;">{{ report.description }}</p>
+
+                    {% if report.photo_filepath %}
+                    <hr>
+                    <h5>Надане фото:</h5>
+                    <img src="{{ url_for('static', filename=report.photo_filepath) }}" class="img-fluid rounded" alt="Фото продукту">
+                    {% endif %}
+                </div>
+                <div class="card-footer text-center">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-secondary">На головну</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

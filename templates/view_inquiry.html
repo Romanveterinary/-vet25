@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Статус звернення{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center mb-4">Статус вашого звернення №{{ inquiry.id }}</h2>
+    <div class="row">
+        <!-- Колонка з фото та інформацією -->
+        <div class="col-md-7">
+            <div class="card">
+                <img src="{{ url_for('static', filename='uploads/' + inquiry.photo_filepath) }}" class="card-img-top" alt="Фото зі звернення">
+                <div class="card-body">
+                    <h5 class="card-title">Деталі звернення</h5>
+                    <p><strong>Відправник:</strong> {{ inquiry.submitter_name }}</p>
+                    
+                    <!-- ПОКАЗУЄМО НОМЕР ТЕЛЕФОНУ, ЯКЩО ВІН Є -->
+                    {% if inquiry.submitter_phone %}
+                    <p><strong>Телефон для зв'язку:</strong> {{ inquiry.submitter_phone }}</p>
+                    {% endif %}
+                    
+                    <p><strong>Місце:</strong> {{ inquiry.location }}</p>
+                    <p><strong>Опис обставин:</strong><br>{{ inquiry.circumstances | nl2br }}</p>
+                    <p><strong>Статус: <span class="badge bg-primary fs-6">{{ inquiry.status }}</span></strong></p>
+                    <p class="card-text"><small class="text-muted">Надіслано: {{ inquiry.submission_date.strftime('%Y-%m-%d %H:%M') }}</small></p>
+                </div>
+                {% if inquiry.admin_comment %}
+                <div class="card-footer bg-light">
+                    <strong>Коментар адміністратора:</strong>
+                    <p class="mb-0">{{ inquiry.admin_comment }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Колонка з коментарями лікарів -->
+        <div class="col-md-5">
+            <h4>Обговорення спеціалістами</h4>
+            <hr>
+            <div class="comments-list" style="max-height: 500px; overflow-y: auto; padding-right: 15px;">
+                {% for comment in comments %}
+                <div class="card mb-2">
+                    <div class="card-body p-2">
+                        <p class="mb-1">{{ comment.text }}</p>
+                        <small class="text-muted">-- <strong>Лікар {{ comment.author.username }}</strong>, {{ comment.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted">Коментарів від лікарів ще немає.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
