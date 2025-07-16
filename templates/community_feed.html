@@ -27,7 +27,8 @@
                             {% else %}
                                 <img src="{{ url_for('static', filename=photo.filepath) }}" class="card-img-top" style="height: 250px; object-fit: cover;" alt="Фото випадку">
                             {% endif %}
-                            </a>
+                            
+                        </a>
                         <div class="card-body">
                             <p class="card-text">
                                 <small class="text-muted">Автор: <strong>{{ photo.user.username }}</strong></small><br>
@@ -55,17 +56,4 @@
         </div>
     {% endif %}
 </div>
-
-{% if current_user.is_authenticated %}
-<style>
-/* ... ваші стилі для чату ... */
-</style>
-<div class="chat-widget">
-</div>
-<button class="chat-toggle-btn">?</button>
-<script>
-/* ... ваш скрипт для чату ... */
-</script>
-{% endif %}
-
 {% endblock %}
