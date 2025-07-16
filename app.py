@@ -81,7 +81,7 @@ if GCS_AVAILABLE and BUCKET_NAME:
         print(f"!!! УСПІХ: Успішно підключено до Google Cloud Storage, бакет: {BUCKET_NAME} !!!")
     except Exception as e:
         print(f"!!! ПОМИЛКА ПІДКЛЮЧЕННЯ GCS: Не вдалося підключитися. {e} !!!")
-        bucket = None # Переконуємось, що bucket = None у разі помилки
+        bucket = None
         traceback.print_exc()
 else:
     print("!!! ПОПЕРЕДЖЕННЯ: GCS не налаштовано (немає GCS_BUCKET_NAME або бібліотеки). Використовується локальне сховище. !!!")
@@ -818,7 +818,7 @@ def download_report(period):
 
 @admin_bp.route('/manage_enterprises', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@manager_required
 def manage_enterprises():
     if request.method == 'POST':
         if not current_user.is_admin:
@@ -929,14 +929,21 @@ def create_archive():
                     'organ_type': photo.organ_type
                 })
                 
-                if not photo.filepath.startswith('http'):
-                    try:
+                # Завантаження файлів з хмари або локально
+                try:
+                    arcname = os.path.join('photos', photo.user.username, str(photo.upload_date.year), str(photo.upload_date.month), photo.filename)
+                    if photo.filepath.startswith('http'):
+                        response = requests.get(photo.filepath, stream=True)
+                        if response.status_code == 200:
+                            zip_file.writestr(arcname, response.content)
+                        else:
+                            print(f"Помилка завантаження фото ID {photo.id} з GCS: статус {response.status_code}")
+                    else:
                         full_path = os.path.join(app.static_folder, photo.filepath)
                         if os.path.exists(full_path):
-                            arcname = os.path.join('photos', photo.user.username, str(photo.upload_date.year), str(photo.upload_date.month), photo.filename)
                             zip_file.write(full_path, arcname=arcname)
-                    except Exception as e:
-                        print(f"Не вдалося додати фото {photo.id} в архів: {e}")
+                except Exception as e:
+                    print(f"Не вдалося додати фото ID {photo.id} в архів: {e}")
             
             json_photos_log = json.dumps(photos_log_data, indent=4, ensure_ascii=False)
             zip_file.writestr('photos_log.json', json_photos_log)
