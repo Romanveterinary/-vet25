@@ -11,103 +11,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <title>{% block title %}Vet25{% endblock %}</title>
-
-    <style>
-        .chat-widget {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 350px;
-            max-width: 90%;
-            z-index: 1050;
-        }
-        .chat-bubble {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background-color: #0d6efd;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            position: absolute;
-            bottom: 0;
-            right: 0;
-        }
-        .chat-window {
-            height: 400px;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            display: none; /* Початково сховано */
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .chat-header {
-            background-color: #0d6efd;
-            color: white;
-            padding: 10px 15px;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .close-chat-btn {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            line-height: 1;
-        }
-        .chat-body {
-            flex-grow: 1;
-            padding: 15px;
-            overflow-y: auto;
-            background-color: #f8f9fa;
-        }
-        .chat-footer {
-            padding: 10px;
-            display: flex;
-            border-top: 1px solid #dee2e6;
-        }
-        .chat-response-item {
-            background-color: #e9ecef;
-            padding: 8px 12px;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            font-size: 0.9em;
-        }
-        .chat-response-item strong {
-            display: block;
-            margin-bottom: 5px;
-            color: #0d6efd;
-        }
-        .user-message {
-            background-color: #0d6efd;
-            color: white;
-            align-self: flex-end;
-            border-bottom-right-radius: 4px;
-            padding: 10px 15px;
-            border-radius: 18px;
-            max-width: 80%;
-            white-space: pre-wrap;
-            margin-bottom: 10px;
-        }
-        .bot-message {
-            background-color: #f1f1f1;
-            color: #333;
-            align-self: flex-start;
-            border-bottom-left-radius: 4px;
-            padding: 10px 15px;
-            border-radius: 18px;
-            max-width: 80%;
-            white-space: pre-wrap;
-            margin-bottom: 10px;
-        }
-    </style>
 </head>
 <body>
 
@@ -204,32 +107,10 @@
             </div>
         </div>
     </div>
-
-    {% if current_user.is_authenticated %}
-    <div class="chat-widget">
-        <div class="chat-window card">
-            <div class="chat-header">
-                Ветеринарний помічник
-                <button class="close-chat-btn">&times;</button>
-            </div>
-            <div class="chat-body" id="chat-body">
-                <div class="bot-message">Привіт! Чим я можу вам допомогти стосовно ветеринарії, харчової промисловості або законодавства України в цих сферах?</div>
-            </div>
-            <div class="chat-footer">
-                <input type="text" id="chat-input" class="form-control me-2" placeholder="Задайте питання...">
-                <button class="btn btn-primary" id="chat-send-btn"><i class="bi bi-send"></i></button>
-            </div>
-        </div>
-        <div class="chat-bubble" id="chat-bubble">
-            <i class="bi bi-robot"></i>
-        </div>
-    </div>
-    {% endif %}
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // Функція для показу/приховування пароля
         function togglePasswordVisibility(fieldId) {
             const el = document.getElementById(fieldId);
             if (el) {
@@ -237,7 +118,6 @@
             }
         }
 
-        // Код для модального вікна для збільшення фото
         var imageModal = document.getElementById('imageModal');
         if (imageModal) {
             imageModal.addEventListener('show.bs.modal', function (event) {
@@ -250,72 +130,6 @@
     </script>
     
     {% block scripts %}{% endblock %}
-    
-    {% if current_user.is_authenticated %}
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const chatBubble = document.getElementById('chat-bubble');
-            const chatWindow = document.querySelector('.chat-widget .chat-window');
-            const closeChatBtn = document.querySelector('.close-chat-btn');
-            const chatInput = document.getElementById('chat-input');
-            const chatSendBtn = document.getElementById('chat-send-btn');
-            const chatBody = document.getElementById('chat-body');
-            const currentUserId = {{ current_user.id|tojson }};
-            const backendUrl = "https://vet24-gemini-backend.onrender.com/api/chat";
-
-            // Відкриття/закриття вікна
-            chatBubble.addEventListener('click', () => chatWindow.style.display = 'flex');
-            closeChatBtn.addEventListener('click', () => chatWindow.style.display = 'none');
-
-            // Функція для додавання повідомлень
-            function addMessage(text, className) {
-                const messageElement = document.createElement('div');
-                messageElement.classList.add(className);
-                messageElement.textContent = text;
-                chatBody.appendChild(messageElement);
-                chatBody.scrollTop = chatBody.scrollHeight; // Прокрутка вниз
-            }
-            
-            // Функція для відправки запиту
-            async function sendMessage() {
-                const messageText = chatInput.value.trim();
-                if (!messageText) return;
-
-                addMessage(messageText, 'user-message');
-                chatInput.value = '';
-                addMessage("Друк...", 'bot-message typing-indicator'); // Індикатор друку
-
-                try {
-                    const response = await fetch(backendUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: messageText, user_id: currentUserId })
-                    });
-                    
-                    document.querySelector('.typing-indicator')?.remove(); // Видаляємо індикатор
-
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({error: "Помилка сервера"}));
-                        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-                    }
-
-                    const data = await response.json();
-                    addMessage(data.reply, 'bot-message');
-
-                } catch (error) {
-                    console.error("Помилка відправки:", error);
-                    document.querySelector('.typing-indicator')?.remove();
-                    addMessage(`Виникла помилка: ${error.message}. Спробуйте пізніше.`, 'bot-message');
-                }
-            }
-
-            chatSendBtn.addEventListener('click', sendMessage);
-            chatInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') sendMessage();
-            });
-        });
-    </script>
-    {% endif %}
 
 </body>
 </html>
