@@ -15,13 +15,19 @@
                     <a href="{{ url_for('photo.view_details', photo_id=photo.id) }}" class="d-block w-100 h-100">
                         {% if is_video %}
                             <video style="height: 100%; width: 100%; object-fit: contain;">
-                                <source src="{{ photo.filepath if photo.filepath.startswith('http') else url_for('static', filename=photo.filepath) }}" type="video/mp4">
+                                {% if photo.filepath.startswith('http') %}
+                                    <source src="{{ photo.filepath }}" type="video/mp4">
+                                {% else %}
+                                    <source src="{{ url_for('static', filename=photo.filepath) }}" type="video/mp4">
+                                {% endif %}
                             </video>
                         {% else %}
-                            <img src="{{ (photo.analyzed_filepath or photo.filepath) if (photo.analyzed_filepath or photo.filepath).startswith('http') else url_for('static', filename=(photo.analyzed_filepath or photo.filepath)) }}" 
-                                 class="card-img-top" 
-                                 style="height: 100%; width: 100%; object-fit: cover;" 
-                                 alt="Фото">
+                            {% set image_path = photo.analyzed_filepath or photo.filepath %}
+                            {% if image_path.startswith('http') %}
+                                <img src="{{ image_path }}" class="card-img-top" style="height: 100%; width: 100%; object-fit: cover;" alt="Фото">
+                            {% else %}
+                                <img src="{{ url_for('static', filename=image_path) }}" class="card-img-top" style="height: 100%; width: 100%; object-fit: cover;" alt="Фото">
+                            {% endif %}
                         {% endif %}
                     </a>
                     <div class="card-img-overlay d-flex justify-content-between align-items-start p-2" style="pointer-events: none;">
@@ -35,7 +41,8 @@
                     {% if photo.enterprise %}<p class="card-text"><small class="text-muted">Підприємство: <strong>{{ photo.enterprise.name }}</strong></small></p>{% endif %}
                     <ul class="list-group list-group-flush mb-3">
                         <li class="list-group-item">Трихінельоз: {% if photo.checked_for_trichinella %}✅{% else %}❌{% endif %}</li>
-                        <li class="list-group-item">Цистицеркоз: {% if photo.checked_for_anisakids %}✅{% else %}❌{% endif %}</li>
+                        <li class="list-group-item">Цистицеркоз: {% if photo.checked_for_cysticercosis %}✅{% else %}❌{% endif %}</li>
+                        <li class="list-group-item">Анізакідоз: {% if photo.checked_for_anisakids %}✅{% else %}❌{% endif %}</li>
                     </ul>
                     <p class="card-text"><small class="text-muted">Завантажено: {{ photo.upload_date.strftime('%Y-%m-%d %H:%M') }}</small></p>
                 </div>
