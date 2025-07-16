@@ -14,7 +14,7 @@
                 <div class="card-img-top-container position-relative" style="height: 225px; background-color: black; display: flex; align-items: center; justify-content: center;">
                     <a href="{{ url_for('photo.view_details', photo_id=photo.id) }}" class="d-block w-100 h-100">
                         {% if is_video %}
-                            <video style="height: 100%; width: 100%; object-fit: contain;">
+                            <video style="height: 100%; width: 100%; object-fit: contain;" controls>
                                 {% if photo.filepath.startswith('http') %}
                                     <source src="{{ photo.filepath }}" type="video/mp4">
                                 {% else %}
@@ -23,7 +23,7 @@
                             </video>
                         {% else %}
                             {% set image_path = photo.analyzed_filepath or photo.filepath %}
-                            {% if image_path.startswith('http') %}
+                            {% if image_path and image_path.startswith('http') %}
                                 <img src="{{ image_path }}" class="card-img-top" style="height: 100%; width: 100%; object-fit: cover;" alt="Фото">
                             {% else %}
                                 <img src="{{ url_for('static', filename=image_path) }}" class="card-img-top" style="height: 100%; width: 100%; object-fit: cover;" alt="Фото">
