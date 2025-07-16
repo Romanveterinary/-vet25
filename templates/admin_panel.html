@@ -41,8 +41,13 @@
                         <div class="col">
                             <div class="card h-100">
                                 <a href="{{ url_for('photo.view_details', photo_id=photo.id) }}">
-                                    <img src="{{ url_for('static', filename=photo.filepath) }}" class="card-img-top" alt="{{ photo.filename }}" style="height: 200px; object-fit: cover;">
-                                </a>
+                                    
+                                    {% if photo.filepath.startswith('http') %}
+                                        <img src="{{ photo.filepath }}" class="card-img-top" alt="{{ photo.filename }}" style="height: 200px; object-fit: cover;">
+                                    {% else %}
+                                        <img src="{{ url_for('static', filename=photo.filepath) }}" class="card-img-top" alt="{{ photo.filename }}" style="height: 200px; object-fit: cover;">
+                                    {% endif %}
+                                    </a>
                                 <div class="card-body">
                                     <p class="card-text"><small class="text-muted">Завантажив: {{ photo.user.username }}</small></p>
                                     <p class="card-text"><small class="text-muted">Дата: {{ photo.upload_date.strftime('%Y-%m-%d %H:%M') }}</small></p>
