@@ -1119,7 +1119,7 @@ def init_db_command():
     db.create_all()
     if not User.query.filter_by(username='admin').first():
         admin_user = User(username='admin', role='admin', is_active=True)
-        admin_user.set_password('adminpassword')
+        admin_user.set_password('vet1997')
         db.session.add(admin_user)
         print("Створено адміністратора.")
     if not User.query.filter_by(username='manager').first():
